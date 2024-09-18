@@ -41,11 +41,11 @@ import statsmodels.api as sm
 import time
 
 
-N = 50
+N = 2
 S = 10
 R = 3
 #d_list = [1e-7] #[1e-7,5e-7,1e-6,5e-6,1e-5] #1e-7,5e-7,taking two slowest out
-d_list = [1e-7,5e-7,1e-6]
+d_list = [1e-7,1e-6,1e-5]
 numt = 100000#10000000
 tend = 100000 #100000
 sd = np.zeros((N,len(d_list)))
@@ -107,6 +107,7 @@ for j in range(N):
     c.setInitialConditions(inou=None)
     #print('z0:',c.z0)
     n00 = np.random.uniform(1e6,1e6,S)
+    #for when adding variation
     #c.setInitialConditionsManual(sameS=False,n0=n00)
     #c.setInitialConditionsSameS(inou=False)
     initial_sd[j] = shannon_diversity(c.n0) / shannon_diversity(1/S*np.ones(S))
@@ -143,8 +144,8 @@ for j in range(N):
           
             sd[j,i] = shannon_diversity(neq) / shannon_diversity(1/S*np.ones(S))
             struct_generated[j,i] = 1 - (sd[j,i] / initial_sd[j])
-            #eq_time_c[j,i] = avg_eq_time(c.c,c.t,rel_tol=0.003)
-            #eq_time_a[j,i] = avg_eq_time(c.a[:,0,:],c.t,rel_tol=0.003) 
+            eq_time_c[j,i] = avg_eq_time(c.c,c.t,rel_tol=0.003)
+            eq_time_a[j,i] = avg_eq_time(c.a[:,0,:],c.t,rel_tol=0.003) 
             
             jacob = c.getJacobian()
             
@@ -163,19 +164,12 @@ for j in range(N):
             ar_eig_ratio[j,i] = len(eigsar[eigsar<=0]) / len(eigsar)
             tr_eig_ratio[j,i] = len(eigstr[eigstr<=0]) / len(eigstr)
                        
-                     
-            #for one spcies average eq time when traits reach equilibrium
-            if d==0:
-                pp=2
-            else:
-                ppp=3
-                #eq_time_a[j,i] = avg_eq_time(c.a[:,0,:],c.t,rel_tol=0.003) #1/10 species is plastic so scales
-            
+  
             #comment back later
             # for one plastic species use just first index (distance)
             #init_shift_trait[j,i] = np.linalg.norm(bary2cart((aeq[0,:]/c.E0[0, None]),corners=simplex_vertices(R-1))[0]-bary2cart((a0[0,:]/c.E0[0, None]),corners=simplex_vertices(R-1))[0])
 
-            #init_shift_trait[j,i] = np.linalg.norm(bary2cart((aeq/c.E0[:, None]),corners=simplex_vertices(R-1))[0]-bary2cart((a0/c.E0[:, None]),corners=simplex_vertices(R-1))[0])
+            init_shift_trait[j,i] = np.linalg.norm(bary2cart((aeq/c.E0[:, None]),corners=simplex_vertices(R-1))[0]-bary2cart((a0/c.E0[:, None]),corners=simplex_vertices(R-1))[0])
             #score0_og[j,i] = pred_rad_from_traits_noscale(a0,np.log(neq),s,c.E0)[0]
             #score_og[j,i] = pred_rad_from_traits_noscale(aeq,np.log(neq),s,c.E0)[0]
             #a_fitted[j,i], b_fitted[j,i] = pred_rad_from_traits_noscale(a0,np.log(neq),s,c.E0)[4]
@@ -183,83 +177,33 @@ for j in range(N):
             #scorec[j,i] = pred_rad_from_comp_noscale(a0,np.log(neq),s,c.E0)
             #richness[j,i] = (neq>1e-4).sum()
             ranks[j,i,:] = c.getRanks()
-            #score0[j,i],scorec0[j,i],scored0[j,i] = pred_rad_multiple(a0,np.log(neq),s,c.E0)
-            #score[j,i],scorec[j,i],scored[j,i] = pred_rad_multiple(aeq,np.log(neq),s,c.E0)
+            score0[j,i],scorec0[j,i],scored0[j,i] = pred_rad_multiple(a0,np.log(neq),s,c.E0)
+            score[j,i],scorec[j,i],scored[j,i] = pred_rad_multiple(aeq,np.log(neq),s,c.E0)
             #communities.append(c)
-            #abund_pred[j,i] = pred_abund_from_abund(c.n0, neq)
+            abund_pred[j,i] = pred_abund_from_abund(c.n0, neq)
             ordT[j,i,:] = orderParameter(c.n)
             ordTCV[j,i,:] = orderParameterCV(c.n)
             #peak[j,i] = ordT[j,i,:].max()
             #when[j,i] = c.whenInHull()
-            lypN[j,i] = (c.getLyapunovExp(N=2)).max()
-            lypA[j,i] = (c.getLyapunovExpA0(N=2)).max()
+            #lypN[j,i] = (c.getLyapunovExp(N=2)).max()
+            #lypA[j,i] = (c.getLyapunovExpA0(N=2)).max()
         else:
             #j-=1
             print('Failed run on j=',str(j),'and d=',str(d))
 
-df_eigtest = pd.DataFrame({'d':dd.flatten(),'peak':peak.flatten(),'eigratioab':a_eig_ratio.flatten(),'eigratioar':ar_eig_ratio.flatten(),'eigratio':total_eig_ratio.flatten(),'eigratiotraits':tr_eig_ratio.flatten(),'eig':leading_eigenvalue.flatten(),'eiga':le_a.flatten(),'eigar':le_ar.flatten(),'eigt':le_t.flatten(),'struct':struct_generated.flatten(),'abundP':abund_pred.flatten(),'lypN':lypN.flatten(),'lypA':lypA.flatten(),'tovera':eq_time_a.flatten() / eq_time_c.flatten(),'fd':fd.flatten(),'hull':in_out.flatten(),'fdinit':fd_init.flatten(),'distplast':dist_plast.flatten(),'richness':richness.flatten(),'dist_init':dist_com_s_init.flatten(),'dist_final':dist_com_s_final.flatten(),'plast':init_shift_trait.flatten()*S,'pred':score.flatten(),'pred0':score0.flatten(),'predc0':scorec0.flatten(),'predd0':scored0.flatten(),'predd':scored.flatten(),'predc':scorec.flatten(),'pred_diff':(score0.flatten()-score.flatten()), 'c_eq':eq_time_c.flatten()*c.dlta[0],'a_eq':eq_time_a.flatten()*c.dlta[0],'shannon':sd.flatten(),'a':a_fitted.flatten(),'b':b_fitted.flatten(),'ba':b_fitted.flatten()/a_fitted.flatten(),'tva':score0.flatten()-abund_pred.flatten()})
+df_d1 = pd.DataFrame({'d':dd.flatten(),'peak':peak.flatten(),'eigratioab':a_eig_ratio.flatten(),'eigratioar':ar_eig_ratio.flatten(),'eigratio':total_eig_ratio.flatten(),'eigratiotraits':tr_eig_ratio.flatten(),'eig':leading_eigenvalue.flatten(),'eiga':le_a.flatten(),'eigar':le_ar.flatten(),'eigt':le_t.flatten(),'struct':struct_generated.flatten(),'abundP':abund_pred.flatten(),'lypN':lypN.flatten(),'lypA':lypA.flatten(),'tovera':eq_time_a.flatten() / eq_time_c.flatten(),'fd':fd.flatten(),'hull':in_out.flatten(),'fdinit':fd_init.flatten(),'distplast':dist_plast.flatten(),'richness':richness.flatten(),'dist_init':dist_com_s_init.flatten(),'dist_final':dist_com_s_final.flatten(),'plast':init_shift_trait.flatten()*S,'pred':score.flatten(),'pred0':score0.flatten(),'predc0':scorec0.flatten(),'predd0':scored0.flatten(),'predd':scored.flatten(),'predc':scorec.flatten(),'pred_diff':(score0.flatten()-score.flatten()), 'c_eq':eq_time_c.flatten()*c.dlta[0],'a_eq':eq_time_a.flatten()*c.dlta[0],'shannon':sd.flatten(),'a':a_fitted.flatten(),'b':b_fitted.flatten(),'ba':b_fitted.flatten()/a_fitted.flatten(),'tva':score0.flatten()-abund_pred.flatten()})
 #df_eigtest = df_eigtest[df_eigtest.richness != 0]
 #df_d230F.to_csv('N100_S30R3_d1e-7_1e-5F_final.csv')
 
-"""
-#df_d2['rel_pred'] = score0[score0!=0] / score[score!=0]
-tovera = df_d2['a_eq'] / df_d2['c_eq']
 
 plt.figure()
-ax = sns.scatterplot(x="dist_init", y="shannon",hue='d', data=df_d1)
-ax.set_xlabel("$d$", fontsize = 12)
-ax.set_ylabel("shannon diversity", fontsize = 12)
+ax = sns.lineplot(x="d", y="a_eq",label='traits',color='tab:cyan', data=df_d1)
+ax = sns.lineplot(x="d", y="c_eq",label='abundances',color='tab:red', data=df_d1)
+ax.set_xlabel("$d$", fontsize = 16)
+ax.set_ylabel("transient time $(1/\delta)$", fontsize = 14)
+ax.loglog()
+plt.legend(fontsize=14)
 plt.show()
-
-plt.figure()
-ax = sns.lineplot(x="d", y="pred_diff", data=df_d1)
-ax.set_xlabel("$d$", fontsize = 12)
-ax.set_ylabel("average consumption vectors", fontsize = 12)
-plt.show()
-
-plt.figure()
-ax = sns.lineplot(x="d", y="c_eq", data=df_d1)
-ax.set_xlabel("$d$", fontsize = 12)
-ax.set_ylabel("transient times $1/\delta$", fontsize = 12)
-plt.show()
-
-
-sterr = ranks.std(axis=0) / np.sqrt(N)
-
-plt.figure()
-for r in range(len(d_list)):
-    plt.semilogy(np.arange(1,S+1),ranks.mean(axis=0)[r,:],label='d='+str(d_list[r]))
-    plt.fill_between(np.arange(1,S+1), ranks.mean(axis=0)[r,:] - sterr[r,:], ranks.mean(axis=0)[r,:] + sterr[r,:], alpha=0.2)
-plt.xticks(np.arange(5,S+1,5))
-plt.xlabel('ranks')
-plt.ylabel('abundance')
-plt.ylim([1e-4,1])
-plt.legend()
-plt.show()
-
-plt.figure()
-ax = sns.lineplot(x="d", y="c_eq",label='abundances',data=df_d2)
-ax = sns.lineplot(x="d", y="a_eq",label='traits',data=df_d2)
-ax.set_xlabel("$d$", fontsize = 12)
-ax.set_ylabel("transient time $1/d$", fontsize = 12)
-plt.legend()
-#ax.set_ylim(bottom=0,top=1)
-plt.show()
-
-plt.figure()
-ax = sns.lineplot(x="d", y="fd",data=df_d2)
-ax = sns.lineplot(x="d", y="fdinit",data=df_d2)
-ax.set_xlabel("$d$", fontsize = 12)
-ax.set_ylabel("functional diversity", fontsize = 12)
-#ax.set_ylim(bottom=0,top=1)
-plt.show()
-
-plt.figure()
-ax = sns.scatterplot(x='c_eq',y='a_eq',hue='d',palette='viridis',data=df_d1)
-ax.set_xlabel("abdundance transient time ($1/\delta$)", fontsize = 12)
-ax.set_ylabel("trait transient time ($1/\delta$)", fontsize = 12)
-plt.axis('square')
-#ax.set_ylim(bottom=0,top=1)
 
 ineq = np.concatenate((np.zeros(N*len(d_list)),np.ones(N*len(d_list))))
 dl = np.concatenate((dd.flatten(),dd.flatten()))
@@ -268,60 +212,12 @@ predallc = np.concatenate((scorec0.flatten(),scorec.flatten()))
 predalld = np.concatenate((scored0.flatten(),scored.flatten()))
 
 df_d3 = pd.DataFrame({'d':dl,'pred':(predall),'predc':(predallc),'predd':(predalld),'init':ineq})
-
 plt.figure()
-ax = sns.lineplot(x="d", y="pred",hue='init',data=df_d3)
-ax.set_xlabel("$d$", fontsize = 12)
-ax.set_ylabel("$R^2$", fontsize = 12)
-ax.set_ylim(bottom=0,top=1)
-ax.set_xscale('log')
-plt.legend(['initial traits','equilibrium traits'],title=None)
-plt.show()
-
-plt.figure()
-ax = sns.scatterplot(x='dist_init',y='shannon',hue='d',palette='crest',data=df_d1)
-ax.set_xlabel("$iCSVD$", fontsize = 12)
-ax.set_ylabel("evenness", fontsize = 12)
-
-plt.show()
-xt=pd.qcut(df_d2['dist_init'],4,labels=False)+1
-plt.figure()
-sns.color_palette("viridis", as_cmap=True)
-ax = sns.lineplot(x='d',y='shannon',hue=xt,palette='crest',data=df_d2)
-ax.set_xlabel("$d$", fontsize = 12)
-ax.set_ylabel("evenness", fontsize = 12)
-plt.legend(['$Q_1$','$Q_2$','$Q_3$','$Q_4$'],title='$iCSVD$ quartile')
-plt.show()
-                         
-plt.figure()
-ax = sns.scatterplot(x=df_d2.plast, y=tovera,hue='d',data=df_d2)
-ax.set_xlabel("||initial - final traits||", fontsize = 12)
-ax.set_ylabel("relative trait to abundance transient time", fontsize = 12)
-ax.set_ylim(-0.05,1.6)
-plt.show()
-
-
-plt.figure()
-ax = sns.lineplot(x="d", y="a_eq",label='traits',color='tab:cyan', data=df_d2)
-ax = sns.lineplot(x="d", y="c_eq",label='abundances',color='tab:red', data=df_d2)
-ax.set_xlabel("$d$", fontsize = 16)
-ax.set_ylabel("transient time $(1/\delta)$", fontsize = 14)
-ax.loglog()
-plt.legend(fontsize=14)
-plt.show()
-
-sterr_o = ordT.std(axis=0) / np.sqrt(N)
-plt.figure()
-for r in range(len(d_list)):
-    plt.semilogx(c.t,ordT[:,r,:].mean(axis=0),label='d='+str(d_list[r]))
-    plt.fill_between(c.t, ordT[:,r,:].mean(axis=0) - sterr_o[r,:], ordT[:,r,:].mean(axis=0) + sterr_o[r,:], alpha=0.2)
-
-plt.xlabel('time')
-plt.ylabel('fitness variance')
-#plt.ylim([1e-4,1])
-plt.legend(title='plasticity rate')
-plt.show()
-"""
+ax = sns.boxenplot(x="init", y="pred", data=df_d3[df_d3.d == 1e-7])
+ax.set_xlabel(" ", fontsize = 10)
+ax.set_ylabel("R^2", fontsize = 10)
+plt.yscale('linear')
+ax.set_xticklabels(['Initial metabolic strategies','Equilibrium metabolic strategies'])
 
 sterr_o = ordT.std(axis=0) / np.sqrt(N)
 col = plt.cm.viridis(np.linspace(0.1,0.9,3))
@@ -340,4 +236,22 @@ plt.gca().tick_params(axis='x',labelsize=13)
 plt.gca().tick_params(axis='y',labelsize=13)
 plt.tight_layout()
 #plt.savefig('5b_fitvar_010824.pdf')
+plt.show()
+
+plt.figure()
+ax = sns.scatterplot(x='dist_init',y='shannon',hue='d',palette='crest',data=df_d1)
+ax.set_xlabel("$iCSVD$", fontsize = 12)
+ax.set_ylabel("evenness", fontsize = 12)
+
+sterr = ranks.std(axis=0) / np.sqrt(N)
+
+plt.figure()
+for r in range(len(d_list)):
+    plt.semilogy(np.arange(1,S+1),ranks.mean(axis=0)[r,:],label='d='+str(d_list[r]))
+    plt.fill_between(np.arange(1,S+1), ranks.mean(axis=0)[r,:] - sterr[r,:], ranks.mean(axis=0)[r,:] + sterr[r,:], alpha=0.2)
+plt.xticks(np.arange(5,S+1,5))
+plt.xlabel('ranks')
+plt.ylabel('abundance')
+plt.ylim([1e-4,1])
+plt.legend()
 plt.show()
