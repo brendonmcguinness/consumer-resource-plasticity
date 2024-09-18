@@ -8,13 +8,10 @@ Created on Thu Sep 14 18:46:53 2023
 import numpy as np
 from scipy.integrate import odeint
 import matplotlib.pyplot as plt
-from random import choice
-
-#weird warning with seaborn
 import seaborn as sns
-
 import pandas as pd
 import matplotlib.lines as mlines
+
 from lag_v_budg_fn import model
 from lag_v_budg_fn import model_nonlinear_tradeoffs
 from lag_v_budg_fn import model_sublinear
