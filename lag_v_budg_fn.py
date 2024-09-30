@@ -1469,6 +1469,9 @@ def avg_eq_time(c,t,rel_tol=0.001):
         except:
             print('not finding eq time')
             stable_index[i] = t[-1] #maybe delete this
+            
+        if stable_index[i] == t.shape[0]:
+            stable_index[i] = t[-1]
     return np.mean(t[stable_index.astype(int)])
 
 def avg_eq_time_traits(a,t,rel_tol=0.001):
@@ -1476,7 +1479,10 @@ def avg_eq_time_traits(a,t,rel_tol=0.001):
     stable_index = np.zeros((S,R))
     for i in range(S):
         for j in range(R):
-            stable_index[i,j] = np.where(np.abs(a[-1,i,j] - a[:,i,j]) > (a[-1,i,j]*rel_tol))[0][-1] + 1
+            try:
+                stable_index[i,j] = np.where(np.abs(a[-1,i,j] - a[:,i,j]) > (a[-1,i,j]*rel_tol))[0][-1] + 1
+            except:
+                stable_index[i,j] = t[-1]
     return np.mean(t[stable_index.flatten().astype(int)])
         
 def log_series_pmf(k,p):

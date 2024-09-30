@@ -12,7 +12,7 @@ Created on Tue Sep 19 14:55:21 2023
 
 @author: brendonmcguinness
 """
-#increasing R resources
+#changing plasticity rate d
 
 import numpy as np
 from scipy.integrate import odeint
@@ -41,7 +41,7 @@ import statsmodels.api as sm
 import time
 
 
-N = 2
+N = 50
 S = 10
 R = 3
 #d_list = [1e-7] #[1e-7,5e-7,1e-6,5e-6,1e-5] #1e-7,5e-7,taking two slowest out
@@ -116,11 +116,9 @@ for j in range(N):
     
     for i,d in enumerate(d_list):
         
-        #c.onePlastic(d)
 
         c.setD(d)
 
-        #print(c.d)
         c.runModel()
         neq,ceq,aeq = c.getSteadyState()
         s,a0 = c.getSA()
@@ -131,21 +129,19 @@ for j in range(N):
             in_out[j,i] = 0
         dist_com_s_init[j,i] = supply_to_weighted_centroid(s,a0,c.n0,c.E0)
         dist_com_s_final[j,i] = supply_to_weighted_centroid(s,aeq,neq,c.E0)
-        #dist_com_s_init[j,i] = np.linalg.norm(bary2cart((a0[0,:]/c.E0[0, None]),corners=simplex_vertices(R-1))[0]-bary2cart((s/s.sum()),corners=simplex_vertices(R-1))[0])
         dist_plast[j] = distance(s,a0[0,:],c.E0)
-
-        #c.plotTimeSeries('d='+str(d))
+        
         if ~np.isnan(neq).any() and (neq>0).all():
-                
+            #turn    
             neq = (neq / neq.sum()) 
+            #get functinal diversity at final and initial times
             fd[j] = get_fd_and_centroid(aeq)[0]
             fd_init[j] = get_fd_and_centroid(a0)[0]
-            #comment back later
           
             sd[j,i] = shannon_diversity(neq) / shannon_diversity(1/S*np.ones(S))
             struct_generated[j,i] = 1 - (sd[j,i] / initial_sd[j])
             eq_time_c[j,i] = avg_eq_time(c.c,c.t,rel_tol=0.003)
-            eq_time_a[j,i] = avg_eq_time(c.a[:,0,:],c.t,rel_tol=0.003) 
+            eq_time_a[j,i] = avg_eq_time(c.a,c.t,rel_tol=0.003) 
             
             jacob = c.getJacobian()
             
