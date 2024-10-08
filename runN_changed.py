@@ -101,11 +101,11 @@ for j in range(N):
     if j%10==0:
         print('N='+str(j))
     
+    
     c = Community(S,R)
     c.changeTimeScale(tend,numt)
 
     c.setInitialConditions(inou=None)
-    #print('z0:',c.z0)
     n00 = np.random.uniform(1e6,1e6,S)
     #for when adding variation
     #c.setInitialConditionsManual(sameS=False,n0=n00)
@@ -132,29 +132,34 @@ for j in range(N):
         dist_plast[j] = distance(s,a0[0,:],c.E0)
         
         if ~np.isnan(neq).any() and (neq>0).all():
-            #turn    
+            #get equilibrium abundances into relative distribution    
             neq = (neq / neq.sum()) 
             #get functinal diversity at final and initial times
             fd[j] = get_fd_and_centroid(aeq)[0]
             fd_init[j] = get_fd_and_centroid(a0)[0]
-          
+            #get normalized shannon diversity (evenness)
             sd[j,i] = shannon_diversity(neq) / shannon_diversity(1/S*np.ones(S))
+            #structure generated, variability from traits (SSI)
             struct_generated[j,i] = 1 - (sd[j,i] / initial_sd[j])
+            #get transient times for traits and abundances (resource flattening describes abundances)
             eq_time_c[j,i] = avg_eq_time(c.c,c.t,rel_tol=0.003)
             eq_time_a[j,i] = avg_eq_time(c.a,c.t,rel_tol=0.003) 
-            
+            #get jacobian matrix
             jacob = c.getJacobian()
-            
             jacob_ar = jacob
+            #different subsets of jacobian matrix 
             eigst[j,i,:] = np.linalg.eig(jacob[:S+R+S*R,:S+R+S*R])[0]
             eigsa = np.linalg.eig(jacob[:S,:S])[0]
             eigsar = np.linalg.eig(jacob[:S+R,:S+R])[0]
             eigstr = np.linalg.eig(jacob[S+R:S+R+S*R,S+R:S+R+S*R])[0]
-            leading_eigenvalue[j,i] = eigst[j,i,:].real.max()
+            
+            #leading eigenvalue
+            leading_eigenvalue[j,i] = eigst[j,i,:].real.max()            
             le_a[j,i] = eigsa.real.max()
             le_ar[j,i] = eigsar.real.max()
             le_t[j,i] = eigstr.real.max()
             
+            #ratio of positive to negative eigenvalues
             total_eig_ratio[j,i] = len(eigst[j,i,eigst[j,i,:]<=0]) / (S+R+S*R)
             a_eig_ratio[j,i] = len(eigsa[eigsa<=0]) / len(eigsa)
             ar_eig_ratio[j,i] = len(eigsar[eigsar<=0]) / len(eigsar)
@@ -164,23 +169,30 @@ for j in range(N):
             #comment back later
             # for one plastic species use just first index (distance)
             #init_shift_trait[j,i] = np.linalg.norm(bary2cart((aeq[0,:]/c.E0[0, None]),corners=simplex_vertices(R-1))[0]-bary2cart((a0[0,:]/c.E0[0, None]),corners=simplex_vertices(R-1))[0])
-
+            #total distance of trait shuft
             init_shift_trait[j,i] = np.linalg.norm(bary2cart((aeq/c.E0[:, None]),corners=simplex_vertices(R-1))[0]-bary2cart((a0/c.E0[:, None]),corners=simplex_vertices(R-1))[0])
             #score0_og[j,i] = pred_rad_from_traits_noscale(a0,np.log(neq),s,c.E0)[0]
             #score_og[j,i] = pred_rad_from_traits_noscale(aeq,np.log(neq),s,c.E0)[0]
             #a_fitted[j,i], b_fitted[j,i] = pred_rad_from_traits_noscale(a0,np.log(neq),s,c.E0)[4]
             #scored[j,i] = pred_rad_from_dist_noscale(a0, np.log(neq), s, c.E0)
             #scorec[j,i] = pred_rad_from_comp_noscale(a0,np.log(neq),s,c.E0)
-            #richness[j,i] = (neq>1e-4).sum()
+            #define a threshold for presence of a species if its at least 0.1% of the abundance of the community
+            #richness[j,i] = (neq>1e-3).sum()
+            
+            #get ranked abundances
             ranks[j,i,:] = c.getRanks()
+            #get scores predicting how much traits -> abundances
             score0[j,i],scorec0[j,i],scored0[j,i] = pred_rad_multiple(a0,np.log(neq),s,c.E0)
             score[j,i],scorec[j,i],scored[j,i] = pred_rad_multiple(aeq,np.log(neq),s,c.E0)
-            #communities.append(c)
+            #null model abundance prediction
             abund_pred[j,i] = pred_abund_from_abund(c.n0, neq)
+            #order parameter for fitness variance
             ordT[j,i,:] = orderParameter(c.n)
             ordTCV[j,i,:] = orderParameterCV(c.n)
             #peak[j,i] = ordT[j,i,:].max()
             #when[j,i] = c.whenInHull()
+            
+            
             #lypN[j,i] = (c.getLyapunovExp(N=2)).max()
             #lypA[j,i] = (c.getLyapunovExpA0(N=2)).max()
         else:
@@ -209,11 +221,11 @@ predalld = np.concatenate((scored0.flatten(),scored.flatten()))
 
 df_d3 = pd.DataFrame({'d':dl,'pred':(predall),'predc':(predallc),'predd':(predalld),'init':ineq})
 plt.figure()
-ax = sns.boxenplot(x="init", y="pred", data=df_d3[df_d3.d == 1e-7])
+ax = sns.boxenplot(x="init", y="pred", data=df_d3[df_d3.d == 1e-6])
 ax.set_xlabel(" ", fontsize = 10)
-ax.set_ylabel("R^2", fontsize = 10)
+ax.set_ylabel("$R^2$", fontsize = 10)
 plt.yscale('linear')
-ax.set_xticklabels(['Initial metabolic strategies','Equilibrium metabolic strategies'])
+ax.set_xticklabels(['Initial traits','Equilibrium traits'])
 
 sterr_o = ordT.std(axis=0) / np.sqrt(N)
 col = plt.cm.viridis(np.linspace(0.1,0.9,3))
@@ -243,8 +255,8 @@ sterr = ranks.std(axis=0) / np.sqrt(N)
 
 plt.figure()
 for r in range(len(d_list)):
-    plt.semilogy(np.arange(1,S+1),ranks.mean(axis=0)[r,:],label='d='+str(d_list[r]))
-    plt.fill_between(np.arange(1,S+1), ranks.mean(axis=0)[r,:] - sterr[r,:], ranks.mean(axis=0)[r,:] + sterr[r,:], alpha=0.2)
+    plt.semilogy(np.arange(1,S+1),ranks.mean(axis=0)[r,:],label='d='+str(d_list[r]),color=col[r])
+    plt.fill_between(np.arange(1,S+1), ranks.mean(axis=0)[r,:] - sterr[r,:], ranks.mean(axis=0)[r,:] + sterr[r,:], alpha=0.2,color=col[r])
 plt.xticks(np.arange(5,S+1,5))
 plt.xlabel('ranks')
 plt.ylabel('abundance')

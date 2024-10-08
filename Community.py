@@ -129,8 +129,8 @@ class Community(object):
             for i in range(0, self.S):
                 #change back now uniform random
                 dirc = np.random.randint(1,5,size=self.R) #sub dirc
-                #self.a0[i, :] = np.random.dirichlet(dirc*np.ones(self.R), size=1) * self.E0[i]
-                self.a0[i, :] = np.random.dirichlet(np.ones(self.R), size=1) * self.E0[i]
+                self.a0[i, :] = np.random.dirichlet(dirc*np.ones(self.R), size=1) * self.E0[i]
+                #self.a0[i, :] = np.random.dirichlet(np.ones(self.R), size=1) * self.E0[i]
             #now s is in center change back
             self.s = np.random.uniform(10e-5,10e-2,self.R) #5,2
             self.s = (self.s / self.s.sum())*10e-2 #S total will always be the same -> nmaybe change later

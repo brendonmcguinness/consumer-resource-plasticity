@@ -1468,10 +1468,10 @@ def avg_eq_time(c,t,rel_tol=0.001):
             stable_index[i] = np.where(np.abs(c[-1,i] - c[:,i]) > (c[-1,i]*rel_tol))[0][-1] + 1                
         except:
             print('not finding eq time')
-            stable_index[i] = t[-1] #maybe delete this
+            stable_index[i] = t.shape[0]-1#t[-1] #maybe delete this
             
         if stable_index[i] == t.shape[0]:
-            stable_index[i] = t[-1]
+            stable_index[i] = t.shape[0]-1#t[-1]
     return np.mean(t[stable_index.astype(int)])
 
 def avg_eq_time_traits(a,t,rel_tol=0.001):
