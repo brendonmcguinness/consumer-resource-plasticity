@@ -11,35 +11,33 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 import matplotlib.lines as mlines
-
-from lag_v_budg_fn import model
-from lag_v_budg_fn import model_nonlinear_tradeoffs
-from lag_v_budg_fn import model_sublinear
-from lag_v_budg_fn import get_rank_dist_save_ind
-from lag_v_budg_fn import model_nonlinear_tradeoffs
-from lag_v_budg_fn import pickPointInitDist
-from lag_v_budg_fn import full_point_in_hull
-from lag_v_budg_fn import simplex_vertices
-from lag_v_budg_fn import bary2cart
 from scipy.spatial import ConvexHull
-from lag_v_budg_fn import weighted_centroid
-from lag_v_budg_fn import chooseAbundWeights
-from lag_v_budg_fn import model_sublinear_noplast
-from lag_v_budg_fn import pred_rad_from_weighted_traits
-from lag_v_budg_fn import model_when_even
-from lag_v_budg_fn import avg_eq_time
-from lag_v_budg_fn import shannon_diversity
-from lag_v_budg_fn import supply_to_weighted_centroid
-from lag_v_budg_fn import centeroidnp
-from lag_v_budg_fn import model_selfinter
-from lag_v_budg_fn import pick_inout_hull
-from lag_v_budg_fn import distanceN0
-from lag_v_budg_fn import distanceA0
-from lag_v_budg_fn import compute_jacobian
-from lag_v_budg_fn import pick_inout_hull_a0
-from lag_v_budg_fn import compute_jacobian_centDiff
-from matplotlib import cm
-import statsmodels.api as sm
+
+from utils import model
+from utils import model_nonlinear_tradeoffs
+from utils import model_sublinear
+from utils import get_rank_dist_save_ind
+from utils import pickPointInitDist
+from utils import full_point_in_hull
+from utils import simplex_vertices
+from utils import bary2cart
+from utils import weighted_centroid
+from utils import chooseAbundWeights
+from utils import model_sublinear_noplast
+from utils import pred_rad_from_weighted_traits
+from utils import model_when_even
+from utils import avg_eq_time
+from utils import shannon_diversity
+from utils import supply_to_weighted_centroid
+from utils import centeroidnp
+from utils import model_selfinter
+from utils import pick_inout_hull
+from utils import distanceN0
+from utils import distanceA0
+from utils import compute_jacobian
+from utils import pick_inout_hull_a0
+from utils import compute_jacobian_centDiff
+
 import warnings
 
 class Community(object):
@@ -933,33 +931,21 @@ class Community(object):
         return None
         
         
-    def plotTimeSeries(self,endt=None,eq_time=True,title=None):
+    def plotTimeSeries(self,title=None):
         """
         Plots the time series of species densities over time.
         
         Parameters:
             title (str, optional): Title for the plot. Default is None.
         """
-        #need to fix / debug
-        t = self.t*self.dlta[0]
-        ratio = self.num_t / self.t_end
-        eq = avg_eq_time(self.c, self.t,rel_tol=0.003)
-        if endt==None:
-            idx = None
-            endt = 250
-        else:
-            print(endt / self.dlta[0])
-            idx = np.argmin(np.abs(self.t-self.t[int(endt / self.dlta[0])]))
-            print(idx)
-            idx = int(idx*ratio)
-            plt.figure()
+        
+        plt.figure()
         for i in range(self.S):
-            plt.semilogy(self.t[::idx]*self.dlta[0],self.n[::idx,i]/self.n[-1,:].sum()) #color=colours[i])
+            plt.semilogy(self.t,self.n/self.n[-1,:].sum()) #color=colours[i])
         plt.set_cmap('tab10')
         plt.ylabel('density')
-        plt.xlabel('time (1/$\delta$)')
-        plt.ylim(10e-7,10)
-        plt.xlim([-int(endt/25),self.t[idx]*self.dlta[0]])
+        plt.xlabel('time')
+        #plt.xlim([-int(endt/25),self.t[idx]*self.dlta[0]])
         plt.title(title)
         
         return None
