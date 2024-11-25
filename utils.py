@@ -13,19 +13,12 @@ import pandas as pd
 from scipy.integrate import odeint
 import matplotlib.pyplot as plt
 import math
-import random
-from scipy.optimize import linprog
-from mpl_toolkits import mplot3d
 from scipy.spatial import ConvexHull
 from scipy import stats
 import itertools
 from shapely.geometry import Polygon
 from sklearn.linear_model import LinearRegression
-from sklearn.linear_model import Ridge
 from scipy.optimize import approx_fprime
-from scipy.linalg import lstsq
-from scipy.optimize import nnls
-from scipy.misc import derivative
 from scipy.optimize import lsq_linear
 
 import statsmodels.api as sm
@@ -358,6 +351,7 @@ def model_when_even(y, t, S, R, v, d, dlta, s, u, K, Q, fr=monod):
 
     dzdt = np.concatenate((dndt, dcdt, dadt.flatten(),dwhendt,devendt), axis=None)
     return dzdt
+
 def model_no_E(y, t, S, R, v, d, dlta, s, u, K, Q, fr=monod):
     """
     runs model from Pacciani paper adaptive metabolic strategies
@@ -424,30 +418,6 @@ def model_no_E(y, t, S, R, v, d, dlta, s, u, K, Q, fr=monod):
     dzdt = np.concatenate((dndt, dcdt, dadt.flatten()), axis=None)
     return dzdt
 
-def model_jocob(y):
-    """
-    runs model from Pacciani paper adaptive metabolic strategies
-
-
-    Parameters
-    ----------
-    y : array keeping all the state variables
-    t : time array
-    S : num of species
-    R : num of resources
-    v : nutritional value of resource i
-    d : adaptation rate
-    dlta : death rate of species sigma / outflow of chemostat
-    s : supply of resource i
-    u : degradation rate of resource i
-    K : Monod parameter
-    Q : scaling parameter
-
-    Returns
-    -------
-    dzdt : state variables all packed into same array
-
-    """
     
     def monod(c, k):
         return c/(k+c)
@@ -1076,14 +1046,6 @@ def isSupplyinConvexHull2D(shat, ahat):
         return True
 
 
-def acclimation_fitness(s0hat, a0hat, shat, ahat):
-    S, R = ahat.shape
-    fit_gain = np.zeros(S)
-    for sig in range(S):
-        fit_gain[sig] = np.sum(np.absolute(s0hat-a0hat[sig, :])) - \
-            np.sum(np.absolute(shat-ahat[sig, :]))
-
-    return fit_gain
 
 
 def initial_dist(s0hat, a0hat):
@@ -1136,40 +1098,6 @@ def get_hats(n_eq, a_eq, a0, dlta, v, s, E0, Q):
     return s0_hat, a0_hat, s_hat, a_hat_eq
 
 
-def get_avg_accfit_per_rank(ranks, acc_fit):
-
-    N = ranks.shape[0]
-    S = ranks.shape[1]
-
-    avg_accfit = np.zeros(S)
-    std_accfit = np.zeros(S)
-    for k in range(S):
-        temp_arr = []
-        for j in range(N):
-            temp_arr.append(acc_fit[j, int(ranks[j, k])])
-        # took out abs on mean and std
-        # print(temp_arr)
-        avg_accfit[k] = np.mean(temp_arr)
-        std_accfit[k] = np.std(temp_arr)
-    return avg_accfit, std_accfit
-#    for sig in range(S):
- #       idx =
-
-
-def get_avg_initdist_per_rank(ranks, init_dist):
-
-    N = ranks.shape[0]
-    S = ranks.shape[1]
-
-    avg_initdist = np.zeros(S)
-    std_initdist = np.zeros(S)
-    for k in range(S):
-        temp_arr = []
-        for j in range(N):
-            temp_arr.append(init_dist[j, int(ranks[j, k])])
-        avg_initdist[k] = np.mean(temp_arr)
-        std_initdist[k] = np.mean(temp_arr)
-    return avg_initdist, std_initdist
 
 
 def get_rank_dist(n_eq):
@@ -1225,14 +1153,6 @@ def calc_niche_overlap(a):
 def opt_fun_d(tau, v, s, c_eq):
     return tau*np.sum(v*(s*np.log(s/c_eq)-(s-c_eq)))
 
-
-def calc_CVs(n_eqs, c_eqs, a_eqs):
-
-    CV_n = n_eqs.std(axis=0)/n_eqs.mean(axis=0)
-    CV_c = c_eqs.std(axis=0)/c_eqs.mean(axis=0)
-    CV_a = a_eqs.std(axis=0).mean()/a_eqs.mean()
-
-    return CV_n, CV_c, CV_a
 
 
 def plot_max_diff_commun(n, n_eqs, c, c_eqs, a, Q, dlta, s, v, t, N, title='Self organized population densities'):
@@ -1506,27 +1426,6 @@ def log_series_pmf(k,p):
         pmf[i] = -1 / np.log(1-p+1e-9) * (p ** (k[i])) / k[i]
     return pmf
 
-def log_normal_pmf(x,u,sig):
-    """
-    returns log series from 1...k
-
-    Parameters
-    ----------
-    x : array from 1...N_S
-    u : mean
-    sig : variance
-   
-
-    Returns
-    -------
-    pmf : log normal pmf
-
-    """
-        
-    pmf = np.zeros(x.shape[0])
-    for i in range(x.shape[0]):
-        pmf[i] = 1 / (x[i]*sig*math.sqrt(2*math.pi)) * math.exp(-(np.log(x[i]-(u**2)))/(2*(sig**2)))
-    return pmf
         
 def pick_inout_hull(S, R, E0, a=10e-6, b=10e-2, inout=False,di=None):
     if di.any() == None:
@@ -1986,16 +1885,6 @@ def get_area(ac):
     hull = ConvexHull(ac)
     return hull.volume
 
-def plot_contour(f, x1bound, x2bound, resolution, ax):
-    x1range = np.linspace(x1bound[0], x1bound[1], resolution)
-    x2range = np.linspace(x2bound[0], x2bound[1], resolution)
-    xg, yg = np.meshgrid(x1range, x2range)
-    zg = np.zeros_like(xg)
-    for i,j in itertools.product(range(resolution), range(resolution)):
-        zg[i,j] = f([xg[i,j], yg[i,j]])
-    ax.contour(xg, yg, zg, 100)
-    return ax
-
 
 #for finding area of intersection of two convex hulls
 def clip(subjectPolygon, clipPolygon):
@@ -2081,6 +1970,7 @@ def get_cen_dn(a_eq,E0,s):
     return cen,dn 
 
 def get_comp_std(a_eq,E0,s):
+    #variation of compeitive distances
     S,R = a_eq.shape
     a_sc = a_eq / (E0[:,None])
     ac = bary2cart(a_sc,corners=simplex_vertices(R-1))[0]
@@ -2097,6 +1987,7 @@ def get_comp_std(a_eq,E0,s):
     return comp_var
 
 def comp_dist(a_eq,n_eq,s,E0):
+    #gets competitive distances
     S,R = a_eq.shape
     a_sc = a_eq / (E0[:,None])
     ac = bary2cart(a_sc,corners=simplex_vertices(R-1))[0]
@@ -2110,6 +2001,7 @@ def comp_dist(a_eq,n_eq,s,E0):
     return comp.sum(axis=2)
 
 def pred_rad_from_traits(a_eq,n_eq,s,E0):
+    #predicts slope of relative abundance distribution from traits (initial or final)
     S,R = a_eq.shape
     a_sc = a_eq / (E0[:,None])
     ac = bary2cart(a_sc,corners=simplex_vertices(R-1))[0]
@@ -2132,6 +2024,7 @@ def pred_rad_from_traits(a_eq,n_eq,s,E0):
     return reg.score(X,Y),(reg.coef_[0]*comp_eff/(S-1))+(dist*reg.coef_[1]),(comp_eff/(S-1)).mean(),dist.mean(),scaled_regcoef
 
 def pred_rad_from_traits_noscale(a_eq,n_eq,s,E0):
+    #does the same of pred_rad_from_traits() but coefficients are not scaled
     S,R = a_eq.shape
     a_sc = a_eq / (E0[:,None])
     ac = bary2cart(a_sc,corners=simplex_vertices(R-1))[0]
@@ -2156,6 +2049,7 @@ def pred_rad_from_traits_noscale(a_eq,n_eq,s,E0):
     return reg.score(X,Y),(reg.coef_[0]*comp_eff/(S-1))+(dist*reg.coef_[1]),(comp_eff/(S-1)),dist,reg.coef_,reg,response
 
 def pred_rad_from_comp_noscale(a_eq,n_eq,s,E0):
+    #just from competitive distances
     S,R = a_eq.shape
     a_sc = a_eq / (E0[:,None])
     ac = bary2cart(a_sc,corners=simplex_vertices(R-1))[0]
@@ -2178,6 +2072,7 @@ def pred_rad_from_comp_noscale(a_eq,n_eq,s,E0):
     return reg.score(X,Y)
 
 def pred_rad_from_dist_noscale(a_eq,n_eq,s,E0):
+    #just from supply vector distance
     S,R = a_eq.shape
     a_sc = a_eq / (E0[:,None])
     ac = bary2cart(a_sc,corners=simplex_vertices(R-1))[0]
@@ -2194,6 +2089,7 @@ def pred_rad_from_dist_noscale(a_eq,n_eq,s,E0):
     return reg.score(X,Y)
 
 def pred_rad_multiple(a_eq,n_eq,s,E0):
+    #predicts rand abundance distribution but gets total score, as well as from just competitive and just supply distance 
     S,R = a_eq.shape
     a_sc = a_eq / (E0[:,None])
     ac = bary2cart(a_sc,corners=simplex_vertices(R-1))[0]
@@ -2221,6 +2117,7 @@ def pred_rad_multiple(a_eq,n_eq,s,E0):
     return score, scorec, scored
 
 def pred_ranks(a_eq,n_eq,s,E0):
+    #predicts ranks from traits
     S,R = a_eq.shape
     a_sc = a_eq / (E0[:,None])
     ac = bary2cart(a_sc,corners=simplex_vertices(R-1))[0]
@@ -2273,6 +2170,7 @@ def pickPointInitDist(s, dist, count=0):
     
 
 def pred_abund_from_abund(neq1,neq2):
+    #predicts equilibrium abundances from initial abundances, gets at whether trait driven selection (sorting) occurs
     df = pd.DataFrame(neq1,columns = ['x'])
     df['y'] = neq2.T 
     lm = ols('y ~ x',df).fit()
@@ -2281,6 +2179,7 @@ def pred_abund_from_abund(neq1,neq2):
     return score
 
 def pred_rad_from_weighted_traits(a_eq,n_eq,s,E0):
+    
     S,R = a_eq.shape
     a_sc = a_eq / (E0[:,None])
     ac = bary2cart(a_sc,corners=simplex_vertices(R-1))[0]
