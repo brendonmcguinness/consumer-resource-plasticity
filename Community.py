@@ -685,7 +685,6 @@ class Community(object):
                         
                         # Use odeint here
                     z = odeint(model_simple,self.z0,self.t,args=(self.S,self.R,self.v,self.d,self.dlta,self.s,self.u,self.K,self.Q))
-                    print(z.shape)
                     self.n = z[:,0:self.S]
                     self.c = z[:,self.S:self.S+self.R]
                     at = z[:,self.S+self.R:self.S+self.R+self.S*self.R]
