@@ -16,6 +16,7 @@ from scipy.spatial import ConvexHull
 from utils import model
 from utils import model_nonlinear_tradeoffs
 from utils import model_sublinear
+from utils import model_simple
 from utils import get_rank_dist_save_ind
 from utils import pickPointInitDist
 from utils import full_point_in_hull
@@ -145,6 +146,34 @@ class Community(object):
         self.n0 = np.random.uniform(1e6, 1e6, self.S) #10e-6
         self.c0 = np.random.uniform(1e-3, 1e-3, self.R) #10e-3
         self.z0 = np.concatenate((self.n0, self.c0, self.a0.flatten(), self.E0), axis=None)
+        return None
+    
+    def setInitialConditionsSimple(self,inou=None):
+        """Sets random initial conditions for the community based on species and resources."""
+        self.E0 = np.random.uniform(self.Q*self.dlta, self.Q*self.dlta, self.S)
+        if inou==None:
+            self.a0 = np.zeros((self.S, self.R), dtype=float)
+            for i in range(0, self.S):
+                #change back now uniform random
+                dirc = np.random.randint(1,5,size=self.R) #sub dirc
+                #self.a0[i, :] = np.random.dirichlet(dirc*np.ones(self.R), size=1) * self.E0[i]
+                self.a0[i, :] = np.random.dirichlet(np.ones(self.R), size=1) * self.E0[i]
+            #now s is in center change back
+            self.s = np.random.uniform(10e-5,10e-2,self.R) #5,2
+            self.s = (self.s / self.s.sum())*10e-2 #S total will always be the same -> nmaybe change later
+            #self.s = np.random.uniform(10e-3,10e-3,self.R) #5,2
+        elif inou==True:
+            self.s,self.a0 = pick_inout_hull(self.S,self.R,self.E0,a=10e-5,b=10e-2,inout=True,di=np.random.randint(1,5,size=self.R))
+            self.s = (self.s / self.s.sum())*10e-2
+
+        else:
+            self.s, self.a0 = pick_inout_hull(self.S,self.R,self.E0,a=10e-5,b=10e-2,inout=False,di=np.random.randint(1,5,size=self.R))
+            self.s = (self.s / self.s.sum())*10e-2
+
+
+        self.n0 = np.random.uniform(1e6, 1e6, self.S) #10e-6
+        self.c0 = np.random.uniform(1e-3, 1e-3, self.R) #10e-3
+        self.z0 = np.concatenate((self.n0, self.c0, self.a0.flatten()), axis=None)
         return None
  
     def setInitialConditionsSameS(self,inou=None):
@@ -643,6 +672,52 @@ class Community(object):
             
         if ss==True:
             return self.n0,self.c0,self.a0
+        
+    def runModelSimple(self,ss=False):
+        """Executes the ODE model for the community dynamics in simplest form."""
+        max_attempts = 10
+        attempt = 0
+        while attempt < max_attempts:
+                
+            try:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings('error')
+                        
+                        # Use odeint here
+                    z = odeint(model_simple,self.z0,self.t,args=(self.S,self.R,self.v,self.d,self.dlta,self.s,self.u,self.K,self.Q))
+                    print(z.shape)
+                    self.n = z[:,0:self.S]
+                    self.c = z[:,self.S:self.S+self.R]
+                    at = z[:,self.S+self.R:self.S+self.R+self.S*self.R]
+                    self.a = np.reshape(at,(self.num_t,self.S,self.R))  
+                    
+                    if ss==False:
+                        return None
+                    else:
+                        neq = self.n[-1,:]
+                        ceq = self.c[-1,:]
+                        aeq = self.a[-1,:,:]
+                        return neq,ceq,aeq
+                     
+                  
+                    break
+            except Warning as w:
+                print(f"Caught a warning: {w}")
+                self.resetInitialConditions()
+                #check debug
+                self.setInitialConditions()
+                #self.setInitialConditionsDelta()
+                self.runModel()
+                attempt += 1
+                
+            except Exception as e:
+                print(f"Caught an error: {e}")
+                attempt +=1
+        if attempt == max_attempts:
+            print("Max retry attempts reached.")
+            
+        if ss==True:
+            return self.n0,self.c0,self.a0
 
     def runModelSubLinear(self,ss=False):
         """Executes the ODE model for the community dynamics."""
@@ -938,10 +1013,12 @@ class Community(object):
         Parameters:
             title (str, optional): Title for the plot. Default is None.
         """
-        
+        nrel = self.n / self.n[-1,:].sum()
         plt.figure()
-        for i in range(self.S):
-            plt.semilogy(self.t,self.n/self.n[-1,:].sum()) #color=colours[i])
+        plt.semilogy(self.t,nrel)
+
+        #for i in range(self.S):
+        #    plt.semilogy(self.t,self.n/self.n[-1,:].sum()) #color=colours[i])
         plt.set_cmap('tab10')
         plt.ylabel('density')
         plt.xlabel('time')
@@ -989,7 +1066,7 @@ class Community(object):
         cmaps = np.arange(1,self.S+1)
         sizes = 900*n/n.sum()
         sizes[sizes<15] = 15
-        print(sizes)
+        #print(sizes)
         if self.S < 11:
             plt.scatter(ac[:,0], ac[:,1],s=sizes, c=cmaps, cmap='tab10')
         else:
