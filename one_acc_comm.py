@@ -12,10 +12,10 @@ from scipy.integrate import odeint
 from scipy.spatial import ConvexHull
 import matplotlib.pyplot as plt
 
-from lag_v_budg_fn import model
-from lag_v_budg_fn import bary2cart
-from lag_v_budg_fn import get_rank_dist_save_ind
-from lag_v_budg_fn import simplex_vertices
+from utils import model
+from utils import bary2cart
+from utils import get_rank_dist_save_ind
+from utils import simplex_vertices
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.lines import Line2D
 import matplotlib

@@ -940,8 +940,10 @@ class Community(object):
         """
         
         plt.figure()
-        for i in range(self.S):
-            plt.semilogy(self.t,self.n/self.n[-1,:].sum()) #color=colours[i])
+        nrel = self.n / self.n[-1,:].sum()
+        plt.semilogy(self.t,nrel)
+        #for i in range(self.S):
+        #    plt.semilogy(self.t,self.n/self.n[-1,:].sum()) #color=colours[i])
         plt.set_cmap('tab10')
         plt.ylabel('density')
         plt.xlabel('time')
@@ -989,7 +991,7 @@ class Community(object):
         cmaps = np.arange(1,self.S+1)
         sizes = 900*n/n.sum()
         sizes[sizes<15] = 15
-        print(sizes)
+        #print(sizes)
         if self.S < 11:
             plt.scatter(ac[:,0], ac[:,1],s=sizes, c=cmaps, cmap='tab10')
         else:
