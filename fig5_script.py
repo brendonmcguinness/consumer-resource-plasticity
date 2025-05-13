@@ -15,30 +15,17 @@ Created on Tue Sep 19 14:55:21 2023
 #changing plasticity rate d
 
 import numpy as np
-from scipy.integrate import odeint
 import matplotlib.pyplot as plt
-from random import choice
 import seaborn as sns
 import pandas as pd
 
 from Community import Community
-from lag_v_budg_fn import full_point_in_hull
-from lag_v_budg_fn import supply_to_centroid
-from lag_v_budg_fn import shannon_diversity
-from lag_v_budg_fn import get_fd_and_centroid
-from lag_v_budg_fn import supply_to_weighted_centroid
-from lag_v_budg_fn import bary2cart
-from lag_v_budg_fn import simplex_vertices
-from lag_v_budg_fn import orderParameterCV
-from lag_v_budg_fn import pred_rad_from_dist_noscale
-from lag_v_budg_fn import pred_rad_from_comp_noscale
-from lag_v_budg_fn import avg_eq_time
-from lag_v_budg_fn import distance
-from lag_v_budg_fn import pred_rad_multiple
-from lag_v_budg_fn import pred_abund_from_abund
-from lag_v_budg_fn import orderParameter
-import statsmodels.api as sm
-import time
+from utils import full_point_in_hull
+from utils import shannon_diversity
+from utils import get_fd_and_centroid
+from utils import supply_to_weighted_centroid
+from utils import distance
+from utils import orderParameter
 
 
 

@@ -24,6 +24,9 @@ c.setD(1e-6) #sets plasticity rate
 c.runModel() #runs Model model we use in this code is actually equation 16 in the supplemental information appendix A
 #the reason it is 16 and not 17 is because 16 is more general if we assume the species does not start on its Pareto Frontier
 #for the sake of these simulations it doesn't matter, you can use runModelSimple to use euqation 17 but you just need to initialize z0 differently because E0 is not a state variable
+c.changeTimeScale(50000, 50000)
+c.setD(1e-6) #sets plasticity rate
+c.runModel() #runs Model
 neq,ceq,aeq = c.getSteadyState() # returns steady state
 
 #here we can plot the abundance dynamics
@@ -45,6 +48,8 @@ c.changeTimeScale(100000, 100000)
 c.setInitialConditions(inou=False)
 c.setD(1e-7)
 #if you look into the Community object constructor we can also change any parameter manually (can do this for any parameter)
+#if you look into the Community object constructor we can also change any parameter manually
+c.setD(1e-7)
 c.d = np.ones(10)*1e-7 # does the same as above, sets plasticity rate to 1e-7 for all 10 species
 c.runModel()
 c.plotTimeSeries()
