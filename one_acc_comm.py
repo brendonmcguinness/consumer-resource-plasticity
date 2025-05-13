@@ -12,10 +12,10 @@ from scipy.integrate import odeint
 from scipy.spatial import ConvexHull
 import matplotlib.pyplot as plt
 
-from lag_v_budg_fn import model
-from lag_v_budg_fn import bary2cart
-from lag_v_budg_fn import get_rank_dist_save_ind
-from lag_v_budg_fn import simplex_vertices
+from utils import model
+from utils import bary2cart
+from utils import get_rank_dist_save_ind
+from utils import simplex_vertices
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.lines import Line2D
 import matplotlib
@@ -117,10 +117,10 @@ def plot_simplex_1plast(n_eq,a,s,ind_plast):
     acinit = bary2cart(ainit,corners=simplex_vertices(R-1))[0]
     hull = ConvexHull(acinit)
     for simplex in hull.simplices:
-        plt.plot(acinit[simplex, 0], acinit[simplex, 1], 'tab:blue',alpha=1,zorder=1)
+        plt.plot(acinit[simplex, 0], acinit[simplex, 1], 'k',linestyle='dotted',alpha=1,zorder=1)
 
     for simplex in hull_full.simplices:
-        plt.plot(ac_full[simplex, 0], ac_full[simplex, 1], 'tab:orange',alpha=1,zorder=2) #linestyle='dashed'
+        plt.plot(ac_full[simplex, 0], ac_full[simplex, 1], 'k-',alpha=1,zorder=2) #linestyle='dashed'
 
 
     sc = bary2cart(s,corners=simplex_vertices(R-1))[0]
@@ -153,14 +153,14 @@ def plot_simplex_1plast(n_eq,a,s,ind_plast):
     plt.legend()
     
 
-    legend_elements = [Line2D([0], [0], marker ='X',color='w', label='plastic trait',markerfacecolor='b', markersize=10),
-                       Line2D([0], [0], marker='o', color='w', label='static traits',
+    legend_elements = [Line2D([0], [0], marker ='X',color='w', label='Plastic',markerfacecolor='b', markersize=10),
+                       Line2D([0], [0], marker='o', color='w', label='Static',
                               markerfacecolor='g', markersize=10),
-                        Line2D([0], [0], marker='*', color='w', label='supply vector',
+                        Line2D([0], [0], marker='*', color='w', label='Supply',
                               markerfacecolor='k', markersize=15)
                        ]
-    second_elements = [Line2D([0], [0],color='tab:blue', lw=2, label='initial',linestyle='solid',alpha=1.0)
-                       ,Line2D([0], [0],color='tab:orange', lw=2, label='equilibrium',linestyle='solid',alpha=1.0)
+    second_elements = [Line2D([0], [0],color='k', lw=2, label='Initial',linestyle='dotted',alpha=1.0)
+                       ,Line2D([0], [0],color='k', lw=2, label='Equilibrium',linestyle='solid',alpha=1.0)
                        ]
     first_legend = plt.legend(handles=legend_elements, loc='upper right',fontsize=13)
     ax = plt.gca().add_artist(first_legend)
@@ -170,7 +170,7 @@ def plot_simplex_1plast(n_eq,a,s,ind_plast):
     plt.axis('off')
     plt.tight_layout()
     #plt.show()
-    #plt.savefig('one_plast_simplex_blueorange.pdf')
+    plt.savefig('attempt_042825_fig2_Eq.pdf')
 
 
 S = 10

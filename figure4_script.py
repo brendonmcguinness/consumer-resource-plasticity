@@ -27,7 +27,7 @@ from utils import supply_to_weighted_centroid
 from utils import avg_eq_time
 from utils import distance
 from utils import pred_rad_multiple
-from utils import pred_abund_from_abund
+from utils import pred_abund_from_abund, pred_abund_from_abund_log, pred_abund_from_abund_log_nointercept, pred_rad_multiple_nointercept, pred_abund_from_abund_log_fixed_slope
 
 
 
@@ -61,6 +61,11 @@ le_a = np.zeros((N,len(d_list)))
 le_ar = np.zeros((N,len(d_list)))
 le_t = np.zeros((N,len(d_list)))
 
+score0_ni = np.zeros((N,len(d_list)))
+scorec0_ni = np.zeros((N,len(d_list)))
+scored0_ni = np.zeros((N,len(d_list)))
+pred_resid_ni = np.zeros((N,len(d_list),S))
+
 scored = np.zeros((N,len(d_list)))
 scorec = np.zeros((N,len(d_list)))
 in_out = np.zeros((N,len(d_list)))
@@ -76,12 +81,22 @@ lypN = np.zeros((N,len(d_list)))
 lypA = np.zeros((N,len(d_list)))
 
 ranks = np.zeros((N,len(d_list),S))
+pred_resid = np.zeros((N,len(d_list),S))
+apl_resid = np.zeros((N,len(d_list),S))
+aplni_resid = np.zeros((N,len(d_list),S))
 abund_pred = np.zeros((N,len(d_list)))
+abund_pred_log = np.zeros((N,len(d_list)))
+abund_pred_log_ni = np.zeros((N,len(d_list)))
+const = np.zeros((N,len(d_list)))
+inter = np.zeros((N,len(d_list)))
+abund_pred_log_fs = np.zeros((N,len(d_list)))
+inter_fs = np.zeros((N,len(d_list)))
 ordT = np.zeros((N,len(d_list),numt))
 ordTCV = np.zeros((N,len(d_list),numt))
 struct_generated = np.zeros((N,len(d_list)))
 when = np.zeros((N,len(d_list)))
 
+resid_fs = np.zeros((N,len(d_list),S))
 total_eig_ratio = np.zeros((N,len(d_list)))
 a_eig_ratio = np.zeros((N,len(d_list)))
 ar_eig_ratio = np.zeros((N,len(d_list)))
@@ -142,16 +157,21 @@ for j in range(N):
             #get ranked abundances
             ranks[j,i,:] = c.getRanks()
             #get scores predicting how much traits -> abundances
-            score0[j,i],scorec0[j,i],scored0[j,i] = pred_rad_multiple(a0,np.log(neq),s,c.E0)
-            score[j,i],scorec[j,i],scored[j,i] = pred_rad_multiple(aeq,np.log(neq),s,c.E0)
+            score0[j,i],scorec0[j,i],scored0[j,i], pred_resid[j,i,:] = pred_rad_multiple(a0,np.log(neq),s,c.E0)
+            score0_ni[j,i],scorec0_ni[j,i],scored0_ni[j,i], pred_resid_ni[j,i,:] = pred_rad_multiple_nointercept(a0,np.log(neq),s,c.E0)
+
+            score[j,i],scorec[j,i],scored[j,i], _ = pred_rad_multiple(aeq,np.log(neq),s,c.E0)
             #null model abundance prediction
             abund_pred[j,i] = pred_abund_from_abund(c.n0, neq)
+            abund_pred_log[j,i], const[j,i], inter[j,i], apl_resid[j,i,:] = pred_abund_from_abund_log(c.n0, neq)
+            abund_pred_log_ni[j,i], aplni_resid[j,i,:] = pred_abund_from_abund_log_nointercept(c.n0, neq)
+            abund_pred_log_fs[j,i], inter_fs[j,i], resid_fs[j,i,:] = pred_abund_from_abund_log_fixed_slope(c.n0, neq)
 
         else:
             #j-=1
             print('Failed run on j=',str(j),'and d=',str(d))
 
-df_d1 = pd.DataFrame({'d':dd.flatten(),'hull':in_out.flatten(),'abundP':abund_pred.flatten(),'pred':score.flatten(),'pred0':score0.flatten(),'predc0':scorec0.flatten(),'predd0':scored0.flatten(),'predd':scored.flatten(),'predc':scorec.flatten(),'aeq':eq_time_a.flatten(),'ceq':eq_time_c.flatten()})
+df_d1 = pd.DataFrame({'d':dd.flatten(),'hull':in_out.flatten(),'abundP':abund_pred.flatten(),'abundPl':abund_pred_log.flatten(),'abundPlfs':abund_pred_log_fs.flatten(),'score0ni':score0_ni.flatten(),'pred':score.flatten(),'pred0':score0.flatten(),'predc0':scorec0.flatten(),'predd0':scored0.flatten(),'predd':scored.flatten(),'predc':scorec.flatten(),'aeq':eq_time_a.flatten(),'ceq':eq_time_c.flatten()})
 
 
 
@@ -167,7 +187,7 @@ plt.show()
 
 plt.figure()
 ax = sns.lineplot(x="d", y="pred0",label='initial traits',color='tab:cyan', data=df_d1)
-ax = sns.lineplot(x="d", y="abundP",label='initial abundances',color='tab:red', data=df_d1)
+ax = sns.lineplot(x="d", y="abundPlfs",label='initial abundances',color='tab:red', data=df_d1)
 ax.set_xlabel("$d$", fontsize = 16)
 ax.set_ylabel("variance explained", fontsize = 14)
 ax.set_xscale('log')

@@ -35,13 +35,13 @@ import statsmodels.api as sm
 import time
 
 
-N = 50
+N = 100
 S = 10
 R = 3
 #d_list = [1e-7] #[1e-7,5e-7,1e-6,5e-6,1e-5] #1e-7,5e-7,taking two slowest out
-d_list = [1e-7,1e-6,1e-5]
-numt = 100000#10000000
-tend = 100000 #100000
+d_list = [5e-7,1e-6,5e-6,1e-5]
+numt = 1000000#10000000
+tend = 1000000 #100000
 sd = np.zeros((N,len(d_list)))
 initial_sd = np.zeros(N)
 eq_time_c = np.zeros((N,len(d_list)))
@@ -99,8 +99,8 @@ for j in range(N):
     c = Community(S,R)
     c.changeTimeScale(tend,numt)
 
-    c.setInitialConditions(inou=False)
-    n00 = np.random.uniform(1e6,1e6,S)
+    c.setInitialConditions(inou=None)
+    n00 = np.random.uniform(1e3,1e3,S)
     #for when adding variation
     #c.setInitialConditionsManual(sameS=False,n0=n00)
     #c.setInitialConditionsSameS(inou=False)
@@ -111,7 +111,8 @@ for j in range(N):
     for i,d in enumerate(d_list):
         
 
-        c.setD(d)
+        #c.setD(d)
+        c.onePlastic(d)
 
         c.runModel()
         neq,ceq,aeq = c.getSteadyState()
@@ -133,6 +134,7 @@ for j in range(N):
             fd_init[j] = get_fd_and_centroid(a0)[0]
             #get normalized shannon diversity (evenness)
             sd[j,i] = shannon_diversity(neq) / shannon_diversity(1/S*np.ones(S))
+            richness[j,i] = np.sum(neq>1e-3)
             #structure generated, variability from traits (SSI)
             struct_generated[j,i] = 1 - (sd[j,i] / initial_sd[j])
             #get transient times for traits and abundances (resource flattening describes abundances)

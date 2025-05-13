@@ -21,11 +21,15 @@ c.setInitialConditions(inou=None)
 #this method allows you to choose timescale (t_end,numt) t_end is 
 c.changeTimeScale(50000, 50000)
 c.setD(1e-6) #sets plasticity rate
-c.runModel() #runs Model
+c.runModel() #runs Model model we use in this code is actually equation 16 in the supplemental information appendix A
+#the reason it is 16 and not 17 is because 16 is more general if we assume the species does not start on its Pareto Frontier
+#for the sake of these simulations it doesn't matter, you can use runModelSimple to use euqation 17 but you just need to initialize z0 differently because E0 is not a state variable
 neq,ceq,aeq = c.getSteadyState() # returns steady state
 
 #here we can plot the abundance dynamics
 c.plotTimeSeries()
+
+#here we use model_simple i.e. equation 17 in the SI, it is the same model
 c.setInitialConditionsSimple()
 c.runModelSimple()
 c.plotTimeSeries(title='simple')

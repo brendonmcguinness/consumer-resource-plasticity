@@ -1058,8 +1058,8 @@ class Community(object):
         #ac,corners = bary2cart(a_eq)
         ac,corners = bary2cart(a_eq,corners=simplex_vertices(self.R-1))
         
-        hull = ConvexHull(ac)
-        hull_total = ConvexHull(corners)
+        hull_total = ConvexHull(corners)   
+
         plt.figure(dpi=600)
         #plt.plot(ac[:,0], ac[:,1], 'o')
         cmaps = np.arange(1,self.S+1)
@@ -1071,10 +1071,13 @@ class Community(object):
         else:
             plt.scatter(ac[:,0], ac[:,1],s=sizes, c=cmaps, cmap='tab20')
 
-        for simplex in hull.simplices:
-            plt.plot(ac[simplex, 0], ac[simplex, 1], 'tab:blue',linestyle='solid',alpha=0.01) #linestyle='dashed'
-        plt.fill(ac[hull.vertices,0], ac[hull.vertices,1], 'tab:blue', alpha=0.2)    
-        
+        if self.S - self.R > 1:
+            hull = ConvexHull(ac)
+             
+            for simplex in hull.simplices:
+                plt.plot(ac[simplex, 0], ac[simplex, 1], 'tab:blue',linestyle='solid',alpha=0.01) #linestyle='dashed'
+            plt.fill(ac[hull.vertices,0], ac[hull.vertices,1], 'tab:blue', alpha=0.2)    
+            
 
         sc = bary2cart(self.s,corners=simplex_vertices(self.R-1))[0]
         plt.scatter(sc[0],sc[1],s=300,marker='*',color='k',zorder=3)

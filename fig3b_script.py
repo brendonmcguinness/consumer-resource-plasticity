@@ -122,6 +122,8 @@ for j in range(N):
         if ~np.isnan(neq).any() and (neq>0).all():
             #get equilibrium abundances into relative distribution    
             neq = (neq / neq.sum()) 
+            richness[j,i] = np.sum(neq > 1e-3)
+
             #get functinal diversity at final and initial times
             fd[j] = get_fd_and_centroid(aeq)[0]
             fd_init[j] = get_fd_and_centroid(a0)[0]
@@ -141,7 +143,7 @@ for j in range(N):
             #j-=1
             print('Failed run on j=',str(j),'and d=',str(d))
 
-df_d1 = pd.DataFrame({'d':dd.flatten(),'hull':in_out.flatten(),'pred':score.flatten(),'pred0':score0.flatten(),'predc0':scorec0.flatten(),'predd0':scored0.flatten(),'predd':scored.flatten(),'predc':scorec.flatten()})
+df_d1 = pd.DataFrame({'d':dd.flatten(),'rich':richness.flatten(),'hull':in_out.flatten(),'pred':score.flatten(),'pred0':score0.flatten(),'predc0':scorec0.flatten(),'predd0':scored0.flatten(),'predd':scored.flatten(),'predc':scorec.flatten()})
 #df_eigtest = df_eigtest[df_eigtest.richness != 0]
 #df_d230F.to_csv('N100_S30R3_d1e-7_1e-5F_final.csv')
 

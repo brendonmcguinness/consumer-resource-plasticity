@@ -129,21 +129,7 @@ def model_simple(y, t, S, R, v, d, dlta, s, u, K, Q, fr=monod):
         # assuming no resource outflow (u is 0 for all i)
         dcdt[i] = s[i] - (monod(c[i], K[i]) * np.sum(n *
                           a[:, i])) - u[i]*c[i]  # -10*c[i]
-    """
-    for sig in range(S):
-        for i in range(R):
-            dadt[sig, i] = d[sig]*dlta[sig]*(v[i]*monod(c[i], K[i]) - (
-                1/R*np.sum(v*monod(c, K)*a[sig, :])))
 
-    # for sig in range(0,S):
-    #    dadt[sig,:] = a[sig,:]*d*dlta[sig] * (v*monod(c,K) - (heavyside_approx(a,E,sig)/np.sum(a[sig,:])*np.sum(v*monod(c,K)*a[sig,:])))
-
-    for sig in range(S):
-        for i in range(R):
-            dadt[sig, i] = a[sig, i]*d[sig]*dlta[sig]*(v[i]*monod(c[i], K[i]) - (
-                heavyside_approx(a, Q, dlta, sig)/np.sum(a[sig, :])*np.sum(v*monod(c, K)*a[sig, :])))
-
-"""
     for sig in range(S):
         for i in range(R):
             dadt[sig, i] = a[sig, i]*d[sig]*dlta[sig]*(v[i]*monod(c[i], K[i]) - (
@@ -2184,7 +2170,36 @@ def pred_rad_multiple(a_eq,n_eq,s,E0):
     scorec = anova_table.loc['x1','sum_sq'] / anova_table['sum_sq'].sum()
     scored = anova_table.loc['x2','sum_sq'] / anova_table['sum_sq'].sum()
     
-    return score, scorec, scored
+    return score, scorec, scored, lm.resid
+
+def pred_rad_multiple_nointercept(a_eq,n_eq,s,E0):
+    #predicts rand abundance distribution but gets total score, as well as from just competitive and just supply distance 
+    S,R = a_eq.shape
+    a_sc = a_eq / (E0[:,None])
+    ac = bary2cart(a_sc,corners=simplex_vertices(R-1))[0]
+    sc = bary2cart(s/s.sum(),corners=simplex_vertices(R-1))[0]
+
+    
+    dist = np.sqrt(np.sum((ac-sc)**2,axis=1))
+    
+    comp = np.zeros((S,S,R))
+    for i in range(S):
+        for j in range(S):
+            comp[i,j,:] = np.linalg.norm(ac[i,:] - ac[j,:])
+    comp_eff = comp.sum(axis=2).sum(axis=0)
+
+    X = np.array([comp_eff/(S-1),-dist]).T
+    
+    df = pd.DataFrame(X,columns = ['x1','x2'])
+    df['y'] = n_eq.T 
+    lm = ols('y ~ x1 + x2 -1',df).fit()
+    anova_table = anova_lm(lm)
+    score = anova_table['sum_sq'][:-1].sum() / anova_table['sum_sq'].sum()
+    scorec = anova_table.loc['x1','sum_sq'] / anova_table['sum_sq'].sum()
+    scored = anova_table.loc['x2','sum_sq'] / anova_table['sum_sq'].sum()
+        
+    return score, scorec, scored, lm.resid
+
 
 def pred_ranks(a_eq,n_eq,s,E0):
     #predicts ranks from traits
@@ -2247,6 +2262,80 @@ def pred_abund_from_abund(neq1,neq2):
     anova_table = anova_lm(lm)
     score = anova_table['sum_sq'][:-1].sum() / anova_table['sum_sq'].sum()
     return score
+
+def pred_abund_from_abund_log(neq1, neq2):
+    # Predicts equilibrium abundances from initial abundances after log-transforming data.
+    # Adds a small constant to handle zeros before log transformation.
+    epsilon = 1e-9
+    df = pd.DataFrame({
+        'x': np.log(neq1 + epsilon),
+        'y': np.log(neq2 + epsilon)
+    })
+    lm = ols('y ~ x', df).fit()
+    anova_table = anova_lm(lm)
+    score = anova_table['sum_sq'][:-1].sum() / anova_table['sum_sq'].sum()
+    
+     # Extract slope and intercept
+    c = lm.params['x']       # slope
+    b = lm.params['Intercept']  # intercept
+    
+    return score, c, b, lm.resid
+
+def pred_abund_from_abund_log_fixed_slope(neq1, neq2):
+    """
+    Predicts equilibrium abundances from initial abundances assuming fixed slope = 1 in log-log space.
+    Fits only intercept. Computes R^2 in log space.
+
+    Args:
+        neq1: array-like, initial abundances
+        neq2: array-like, final abundances
+
+    Returns:
+        score: R^2 in log space
+        intercept: fitted intercept (b)
+        residuals: model residuals (log(n_final) - predicted log(n_final))
+    """
+    epsilon = 1e-9  # small constant to avoid log(0)
+
+    # Log-transform initial and final abundances
+    log_init = np.log(neq1 + epsilon)
+    log_final = np.log(neq2 + epsilon)
+
+    # Create response variable: difference in logs
+    log_diff = log_final - log_init
+    df = pd.DataFrame({'log_diff': log_diff})
+
+    # Fit intercept-only model
+    model = ols('log_diff ~ 1', data=df).fit()
+    intercept = model.params['Intercept']
+
+    # Predicted log(final) abundance
+    log_final_pred = intercept + log_init
+
+    # Compute R^2 manually
+    ss_res = np.sum((log_final - log_final_pred) ** 2)
+    ss_tot = np.sum((log_final - np.mean(log_final)) ** 2)
+    r_squared = 1 - ss_res / ss_tot
+
+    # Residuals in log space
+    residuals = log_final - log_final_pred
+
+    return r_squared, intercept, residuals
+def pred_abund_from_abund_log_nointercept(neq1, neq2):
+    # Predicts equilibrium abundances from initial abundances after log-transforming data.
+    # Adds a small constant to handle zeros before log transformation.
+    epsilon = 1e-9
+    df = pd.DataFrame({
+        'x': np.log(neq1 + epsilon),
+        'y': np.log(neq2 + epsilon)
+    })
+    lm = ols('y ~ x-1', df).fit()
+    anova_table = anova_lm(lm)
+    score = anova_table['sum_sq'][:-1].sum() / anova_table['sum_sq'].sum()
+    
+    
+    return score, lm.resid
+
 
 def pred_rad_from_weighted_traits(a_eq,n_eq,s,E0):
     
