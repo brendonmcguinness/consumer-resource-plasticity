@@ -12,26 +12,20 @@ import seaborn as sns
 import pandas as pd
 import matplotlib.lines as mlines
 from scipy.spatial import ConvexHull
+import matplotlib
 
 from utils import model
-from utils import model_nonlinear_tradeoffs
-from utils import model_sublinear
 from utils import model_simple
-from utils import get_rank_dist_save_ind
 from utils import pickPointInitDist
 from utils import full_point_in_hull
 from utils import simplex_vertices
 from utils import bary2cart
 from utils import weighted_centroid
 from utils import chooseAbundWeights
-from utils import model_sublinear_noplast
-from utils import pred_rad_from_weighted_traits
-from utils import model_when_even
 from utils import avg_eq_time
 from utils import shannon_diversity
 from utils import supply_to_weighted_centroid
 from utils import centeroidnp
-from utils import model_selfinter
 from utils import pick_inout_hull
 from utils import distanceN0
 from utils import distanceA0
@@ -115,10 +109,6 @@ class Community(object):
         self.a = None
         return None
     
-    def setDeltaE(self,dlta):
-        self.dlta = dlta
-        self.E0 = self.Q*self.dlta
-        return None
     
     def setInitialConditions(self,inou=None):
         """Sets random initial conditions for the community based on species and resources."""
@@ -196,7 +186,6 @@ class Community(object):
         self.c0 = np.random.uniform(1e-3, 1e-3, self.R) #10e-3
         self.z0 = np.concatenate((self.n0, self.c0, self.a0.flatten(), self.E0), axis=None)
         return None
-    
     def setInitialAlphaRandom(self):
         self.a0 = np.zeros((self.S, self.R), dtype=float)
         for i in range(0, self.S):
@@ -204,34 +193,6 @@ class Community(object):
             self.a0[i, :] = np.random.dirichlet(dirc*np.ones(self.R), size=1) * self.E0[i]
         return self.a0
     
-    """
-    def setInitialConditionsDist(self,dist=0.0,count=0):
-        
-        if count > 100:
-            return -1
-        
-        s = np.ones(self.R) / self.R  #5,2
-        a0 = self.setInitialAlphaRandom()
-        p = pickPointInitDist(s,dist)
-        
-        #print(p)
-        if full_point_in_hull(p,a0):
-            self.a0 = a0
-            self.s = s
-            n = chooseAbundWeights(a0,p)
-            self.n0 = n*1e6
-            self.c0 = np.random.uniform(1e-3, 1e-3, self.R)
-            print(np.linalg.norm(np.dot((bary2cart(self.a0,corners=simplex_vertices(self.R-1))[0]).T,self.n0/self.n0.sum())-bary2cart(self.s,corners=simplex_vertices(self.R-1))[0]))
-            self.z0 = np.concatenate((self.n0, self.c0, self.a0.flatten(), self.E0), axis=None)
-            return None
-        else:
-            self.setInitialConditionsDist(dist,count+1)
-       
-        #check if dist of s in convex hull of strategies, if so choose weights equal dist
-        #if not rechoose a0
-        
-        return None
-    """
     
     def setInitialConditionsDist(self, dist=0.0):
         s = np.ones(self.R) / self.R  # Uniform distribution over R dimensions
@@ -278,7 +239,50 @@ class Community(object):
         self.a0 = a0
         return None
     
-
+    def runModelSimple(self,ss=False):
+        """Executes the ODE model for the community dynamics in simplest form."""
+        max_attempts = 10
+        attempt = 0
+        while attempt < max_attempts:
+                
+            try:
+                with warnings.catch_warnings():
+                    warnings.filterwarnings('error')
+                        
+                        # Use odeint here
+                    z = odeint(model_simple,self.z0,self.t,args=(self.S,self.R,self.v,self.d,self.dlta,self.s,self.u,self.K,self.Q))
+                    self.n = z[:,0:self.S]
+                    self.c = z[:,self.S:self.S+self.R]
+                    at = z[:,self.S+self.R:self.S+self.R+self.S*self.R]
+                    self.a = np.reshape(at,(self.num_t,self.S,self.R))  
+                    
+                    if ss==False:
+                        return None
+                    else:
+                        neq = self.n[-1,:]
+                        ceq = self.c[-1,:]
+                        aeq = self.a[-1,:,:]
+                        return neq,ceq,aeq
+                     
+                  
+                    break
+            except Warning as w:
+                print(f"Caught a warning: {w}")
+                self.resetInitialConditions()
+                #check debug
+                self.setInitialConditions()
+                #self.setInitialConditionsDelta()
+                self.runModel()
+                attempt += 1
+                
+            except Exception as e:
+                print(f"Caught an error: {e}")
+                attempt +=1
+        if attempt == max_attempts:
+            print("Max retry attempts reached.")
+            
+        if ss==True:
+            return self.n0,self.c0,self.a0
         
     def perturbInitialDensity(self,CV=0.03):
         """
@@ -455,72 +459,6 @@ class Community(object):
                     
         neq = self.runModel(ss=True)[0]
         return neq,self.a0
-
-
-        
-    def strengthOfSelection(self,num_samples,CV=0.0001):
-
-
-        #for traits
-        dzt = np.zeros(num_samples)
-        drt = np.zeros(num_samples)
-
-        neql = np.zeros((num_samples,self.S))
-        X = np.zeros(num_samples)
-        in_out = np.zeros(num_samples,dtype=bool)
-        #save initial conds
-        z0 = self.z0
-        a00 = self.a0 / self.E0[:,None]
-        noise = np.random.normal(0,CV*np.mean(self.a0),(self.S,self.R))
-        print('noise',noise)
-        self.runModel()
-        neq,ceq,aeq = self.getSteadyState()
-        a = self.a    
-        c = self.c
-        n = self.n
-        
-        c0 = self.c0
-        n0 = self.n0
-        
-        self.plotSimplex(eq=False)
-        
-        ratio = self.num_t / self.t_end
-        #get eq time for abundances
-        eq_time_c = avg_eq_time(self.c,self.t,rel_tol=0.003)   
-        stop = int(eq_time_c*2)
-        idx = np.arange(0,stop,int(stop/num_samples)+1)
-        #idx = 0 +np.cumsum(idx)
-        print('eq c', eq_time_c)
-        print('idx',idx)
-        #perturbing multiple times
-        eq_found = False
-        eq_sample = 0
-        conv = -1
-        convb = False
-        for i,k in enumerate(idx):
-            ki = int(ratio*k)
-            in_out[i] = full_point_in_hull(self.s, a[ki,:,:])
-            neql[i,:],a_pert = self.perturbDensityA(a[ki,:,:],c[ki,:],n[ki,:],noise)
-
-            dzt[i] = distanceN0(neq,neql[i])
-            drt[i] = distanceN0(get_rank_dist_save_ind(neq)[0],get_rank_dist_save_ind(neql[i])[0])
-            print(dzt[i])
-            X[i] = supply_to_weighted_centroid(self.s,a_pert,n[ki,:], self.E0)
-            self.z0 = z0
-            if (not eq_found) and k > eq_time_c:
-                eq_sample = X[i]
-                eq_found = True
-            if not convb:
-                convb = full_point_in_hull(self.s, self.a[ki,:,:])
-                if convb:
-                    conv = X[i]
-                
-        
-        self.plotSimplex(eq=True)        
-        #print(((1/((self.t_end)*self.dlta[0])) * np.log(dzt/dzt[0])))
-        #return  np.ones(num_samples) - ((1/((self.t_end-self.t[idx])*self.dlta[0])) * np.log(dzt/dzt[0])), X  
-        return np.log(dzt/dzt[0]), X , eq_sample , np.log(drt/drt[0]), eq_found, convb
-           
             
            
     def seedNewEnvironment(self,dilution,noise=None):
@@ -572,49 +510,6 @@ class Community(object):
         self.s = self.s/self.s.sum() * Stot
         return None
 
-    def setInitialConditionsManual(self,a0=np.array([None]),n0=np.array([None]),c0=np.array([None]),sameS=True):
-        """
-        
-
-        Parameters
-        ----------
-        a0 : TYPE
-            DESCRIPTION.
-        n0 : TYPE, optional
-            DESCRIPTION. The default is None.
-        c0 : TYPE, optional
-            DESCRIPTION. The default is None.
-        sameS : TYPE, optional
-            DESCRIPTION. The default is True.
-
-        Returns
-        -------
-        None.
-
-        """
-        
-        if sameS==False:
-            self.s = np.random.uniform(10e-5,10e-2,self.R)
-            
-        if n0.any()==None:
-            self.n0 = np.random.uniform(1e6, 1e6, self.S) #10e-6
-        else:
-            self.n0 = n0
-           
-        if c0.any()==None:
-            self.c0 = np.random.uniform(1e-3, 1e-3, self.R) #10e-3
-        else:
-            self.c0 = c0
-        if a0.any()==None:
-            self.a0 = np.zeros((self.S, self.R), dtype=float)
-            for i in range(0, self.S):
-                dirc = np.random.randint(1,5,size=self.R) #sub dirc
-                self.a0[i, :] = np.random.dirichlet(dirc*np.ones(self.R), size=1) * self.E0[i]
-        else:
-            self.a0 = a0
-
-        self.z0 = np.concatenate((self.n0, self.c0, self.a0.flatten(), self.E0), axis=None)
-        return None
     
     def setD(self,dnew):
         """
@@ -673,275 +568,6 @@ class Community(object):
         if ss==True:
             return self.n0,self.c0,self.a0
         
-    def runModelSimple(self,ss=False):
-        """Executes the ODE model for the community dynamics in simplest form."""
-        max_attempts = 10
-        attempt = 0
-        while attempt < max_attempts:
-                
-            try:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings('error')
-                        
-                        # Use odeint here
-                    z = odeint(model_simple,self.z0,self.t,args=(self.S,self.R,self.v,self.d,self.dlta,self.s,self.u,self.K,self.Q))
-                    self.n = z[:,0:self.S]
-                    self.c = z[:,self.S:self.S+self.R]
-                    at = z[:,self.S+self.R:self.S+self.R+self.S*self.R]
-                    self.a = np.reshape(at,(self.num_t,self.S,self.R))  
-                    
-                    if ss==False:
-                        return None
-                    else:
-                        neq = self.n[-1,:]
-                        ceq = self.c[-1,:]
-                        aeq = self.a[-1,:,:]
-                        return neq,ceq,aeq
-                     
-                  
-                    break
-            except Warning as w:
-                print(f"Caught a warning: {w}")
-                self.resetInitialConditions()
-                #check debug
-                self.setInitialConditions()
-                #self.setInitialConditionsDelta()
-                self.runModel()
-                attempt += 1
-                
-            except Exception as e:
-                print(f"Caught an error: {e}")
-                attempt +=1
-        if attempt == max_attempts:
-            print("Max retry attempts reached.")
-            
-        if ss==True:
-            return self.n0,self.c0,self.a0
-
-    def runModelSubLinear(self,ss=False):
-        """Executes the ODE model for the community dynamics."""
-        max_attempts = 10
-        attempt = 0
-        while attempt < max_attempts:
-                
-            try:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings('error')
-                        
-                        # Use odeint here
-                    z = odeint(model_sublinear,self.z0,self.t,args=(self.S,self.R,self.v,self.d,self.dlta,self.s,self.u,self.K,self.Q,self.k))
-            
-                    self.n = z[:,0:self.S]
-                    self.c = z[:,self.S:self.S+self.R]
-                    at = z[:,self.S+self.R:self.S+self.R+self.S*self.R]
-                    self.a = np.reshape(at,(self.num_t,self.S,self.R))  
-                    
-                    if ss==False:
-                        return None
-                    else:
-                        neq = self.n[-1,:]
-                        ceq = self.c[-1,:]
-                        aeq = self.a[-1,:,:]
-                        return neq,ceq,aeq
-                     
-                  
-                    break
-            except Warning as w:
-                print(f"Caught a warning: {w}")
-                self.resetInitialConditions()
-                #check debug
-                self.setInitialConditions()
-                #self.setInitialConditionsDelta()
-                self.runModelSubLinear()
-                attempt += 1
-                
-            except Exception as e:
-                print(f"Caught an error: {e}")
-                attempt +=1
-        if attempt == max_attempts:
-            print("Max retry attempts reached.")
-            
-        if ss==True:
-            return self.n0,self.c0,self.a0
-        
-    def runModelSubLinearNoPlast(self,ss=False):
-        """Executes the ODE model for the community dynamics."""
-        max_attempts = 10
-        attempt = 0
-        while attempt < max_attempts:
-                
-            try:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings('error')
-                        
-                        # Use odeint here
-                    z = odeint(model_sublinear_noplast,self.z0,self.t,args=(self.S,self.R,self.v,self.dlta,self.s,self.u,self.K,self.Q,self.k))
-            
-                    self.n = z[:,0:self.S]
-                    self.c = z[:,self.S:self.S+self.R]
-                    at = z[:,self.S+self.R:self.S+self.R+self.S*self.R]
-                    self.a = np.reshape(at,(self.num_t,self.S,self.R))  
-                    
-                    if ss==False:
-                        return None
-                    else:
-                        neq = self.n[-1,:]
-                        ceq = self.c[-1,:]
-                        aeq = self.a[-1,:,:]
-                        return neq,ceq,aeq
-                     
-                  
-                    break
-            except Warning as w:
-                print(f"Caught a warning: {w}")
-                self.resetInitialConditions()
-                #check debug
-                self.setInitialConditions()
-                #self.setInitialConditionsDelta()
-                self.runModelSubLinearNoPlast()
-                attempt += 1
-                
-            except Exception as e:
-                print(f"Caught an error: {e}")
-                attempt +=1
-        if attempt == max_attempts:
-            print("Max retry attempts reached.")
-            
-        if ss==True:
-            return self.n0,self.c0,self.a0
-        
-    def runModelWhenEven(self,ss=False):
-        """Executes the ODE model for the community dynamics."""
-        max_attempts = 10
-        attempt = 0
-        while attempt < max_attempts:
-                
-            try:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings('error')
-                        
-                        # Use odeint here
-                    add = np.array([0,shannon_diversity(self.n0)])
-                    z = odeint(model_when_even,np.concatenate((self.z0[:self.z0.shape[0]-self.S],add)),self.t,args=(self.S,self.R,self.v,self.d,self.dlta,self.s,self.u,self.K,self.Q))
-            
-                    self.n = z[:,0:self.S]
-                    self.c = z[:,self.S:self.S+self.R]
-                    at = z[:,self.S+self.R:self.S+self.R+self.S*self.R]
-                    self.a = np.reshape(at,(self.num_t,self.S,self.R))  
-                    self.ww = z[:,self.S+self.R+self.S*self.R] 
-                    self.ev = z[:,self.S+self.R+self.S*self.R+1] 
-                    
-                    if ss==False:
-                        return None
-                    else:
-                        neq = self.n[-1,:]
-                        ceq = self.c[-1,:]
-                        aeq = self.a[-1,:,:]
-                        return neq,ceq,aeq
-                     
-                  
-                    break
-            except Warning as w:
-                print(f"Caught a warning: {w}")
-                self.resetInitialConditions()
-                #self.setInitialConditionsDelta()
-                self.runModel()
-                attempt += 1
-                
-            except Exception as e:
-                print(f"Caught an error: {e}")
-                attempt +=1
-        if attempt == max_attempts:
-            print("Max retry attempts reached.")
-            
-        if ss==True:
-            return self.n0,self.c0,self.a0
-  
-            
-    def runModelSelfInter(self,ss=False):
-        """Executes the ODE model for the community dynamics."""
-        max_attempts = 10
-        attempt = 0
-        #self.Q = np.random.uniform(1e-5,1e-6,self.S)
-        while attempt < max_attempts:
-                
-            try:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings('error')
-                        
-                        # Use odeint here
-                        
-                    z = odeint(model_selfinter,self.z0,self.t,args=(self.S,self.R,self.v,self.d,self.dlta,self.s,self.u,self.K,self.Q,self.eps))
-            
-                    self.n = z[:,0:self.S]
-                    self.c = z[:,self.S:self.S+self.R]
-                    at = z[:,self.S+self.R:self.S+self.R+self.S*self.R]
-                    self.a = np.reshape(at,(self.num_t,self.S,self.R))  
-                    
-                    if ss==False:
-                        return None
-                    else:
-                        neq = self.n[-1,:]
-                        ceq = self.c[-1,:]
-                        aeq = self.a[-1,:,:]
-                        return neq,ceq,aeq
-                     
-                  
-                    break
-            except Warning as w:
-                print(f"Caught a warning: {w}")
-                self.resetInitialConditions()
-                self.setInitialConditionsDelta()
-                self.runModel()
-                attempt += 1
-                
-            except Exception as e:
-                print(f"Caught an error: {e}")
-                attempt +=1
-        if attempt == max_attempts:
-            print("Max retry attempts reached.")
-    
-        if ss==True:
-            return self.n0,self.c0,self.a0
-
-    
-    def runModelAntagonistic(self):
-        """Executes the ODE model for the community dynamics."""
-        max_attempts = 10
-        attempt = 0
-        while attempt < max_attempts:
-                
-            try:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings('error')
-                        
-                        # Use odeint here
-                    z = odeint(model_nonlinear_tradeoffs,self.z0,self.t,args=(self.S,self.R,self.v,self.d,self.dlta,self.s,self.u,self.K,self.Q,self.gamma))
-            
-                    self.n = z[:,0:self.S]
-                    self.c = z[:,self.S:self.S+self.R]
-                    at = z[:,self.S+self.R:self.S+self.R+self.S*self.R]
-                    self.a = np.reshape(at,(self.num_t,self.S,self.R)) 
-                    self.E = z[:,self.S+self.R+self.S*self.R:2*self.S+self.S*self.R+self.R]
-                    #self.dltat = z[:,2*self.S+self.S*self.R+self.R:3*self.S+self.R+self.S*self.R]
-                    #need to only get last 10 instead of last 40
-                  
-                    break
-            except Warning as w:
-                print(f"Caught a warning: {w}")
-                self.resetInitialConditions()
-                self.setInitialConditions()
-                self.runModel()
-                attempt += 1
-                
-            except Exception as e:
-                print(f"Caught an error: {e}")
-                attempt +=1
-        if attempt == max_attempts:
-            print("Max retry attempts reached.")
-
-        
-        return None
     
     def getSteadyState(self):
         """
@@ -980,16 +606,6 @@ class Community(object):
         self.d[0] = dnew
         return None
 
-    def whenInHull(self,stepsize=100):
-        in_out = np.zeros(int(self.num_t/stepsize),dtype=bool)
-        #idx = np.arange(0,in_out.shape[0])
-        for i in range(0,self.num_t-1,stepsize):
-            in_out[int(i/stepsize)] = full_point_in_hull(self.s, self.a[i,:,:])
-            if in_out[int(i/stepsize)]:
-                return self.t[i]
-        #return self.t[np.nonzero(in_out)[0].min()]
-        return None
-
 
     def changeTimeScale(self,tend,numt):
         """
@@ -1003,7 +619,6 @@ class Community(object):
         self.t_end = tend
         self.t = np.linspace(0,tend, numt)
         return None
-        
         
     def plotTimeSeries(self,title=None):
         """
@@ -1024,8 +639,8 @@ class Community(object):
         #plt.xlim([-int(endt/25),self.t[idx]*self.dlta[0]])
         plt.title(title)
         
-        return None
-    
+        return None        
+
     def plotTraitTimeSeries(self,title=None):
         """
         Plots the time series of species densities over time.
@@ -1043,7 +658,7 @@ class Community(object):
         plt.xlim([-1,self.t[-1]*self.dlta[0]/5])
         plt.title(title)
         
-        return None
+        return None   
     
     def plotSimplex(self,eq=True,centroid=False,save=False):
         #figure out how to fix
@@ -1112,8 +727,11 @@ class Community(object):
         if save==True:
             plt.savefig('shuff_pre.pdf')
 
-        plt.show()
-        
+        if matplotlib.get_backend().lower() != "agg":
+            plt.show()
+        else:
+            plt.close()       
+            
     def plotSimplexShuffle(self,eq=True,centroid=False,save=False):
         
         if eq==True:
@@ -1175,37 +793,3 @@ class Community(object):
         if save==True:
             plt.savefig('shuffle_fig.pdf')
         
-        
-    def getAutocorr(self,N,stoch):
-        """
-        gets the autocorrelation for time lag up to N
-
-        Parameters
-        ----------
-        N : Number of new seeds, max time lag
-        stoch : noise added
-
-        Returns
-        -------
-        p_tlag : autocorrelation as a function of timelag
-
-        """
-        
-        p_tlag = np.zeros(N)
-        a_tlag = np.zeros(N)
-        neqs = np.zeros((N,self.S))
-        aeqs = np.zeros((N,self.S,self.R))  
-        dil = 0.01
-        for j in range(N):
-            
-            self.runModel()
-            neqs[j,:],ceqs,aeqs[j,:,:] = self.getSteadyState()
-            self.seedNewEnvironment(dil,stoch[j,:])            
-            n0 = neqs[0,:] + 10
-            nj = neqs[j,:] + 10
-            
-            p_tlag[j] = np.corrcoef(np.log(n0[nj>=0]),np.log(nj[nj>=0]))[0,1]
-            a_tlag[j] = np.corrcoef(aeqs[0,:,:],aeqs[j,:,:])[0,1]
-          
-        return p_tlag,a_tlag
-            
