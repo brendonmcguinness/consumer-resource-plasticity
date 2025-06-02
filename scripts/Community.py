@@ -15,7 +15,7 @@ from scipy.spatial import ConvexHull
 import matplotlib
 
 from utils import model
-from utils import model_simple
+#from utils import model_simple
 from utils import pickPointInitDist
 from utils import full_point_in_hull
 from utils import simplex_vertices
@@ -110,35 +110,35 @@ class Community(object):
         return None
     
     
-    def setInitialConditions(self,inou=None):
-        """Sets random initial conditions for the community based on species and resources."""
-        self.E0 = np.random.uniform(self.Q*self.dlta, self.Q*self.dlta, self.S)
-        if inou==None:
-            self.a0 = np.zeros((self.S, self.R), dtype=float)
-            for i in range(0, self.S):
-                #change back now uniform random
-                dirc = np.random.randint(1,5,size=self.R) #sub dirc
-                self.a0[i, :] = np.random.dirichlet(dirc*np.ones(self.R), size=1) * self.E0[i]
-                #self.a0[i, :] = np.random.dirichlet(np.ones(self.R), size=1) * self.E0[i]
-            #now s is in center change back
-            self.s = np.random.uniform(10e-5,10e-2,self.R) #5,2
-            self.s = (self.s / self.s.sum())*10e-2 #S total will always be the same -> nmaybe change later
-            #self.s = np.random.uniform(10e-3,10e-3,self.R) #5,2
-        elif inou==True:
-            self.s,self.a0 = pick_inout_hull(self.S,self.R,self.E0,a=10e-5,b=10e-2,inout=True,di=np.random.randint(1,5,size=self.R))
-            self.s = (self.s / self.s.sum())*10e-2
+    # def setInitialConditionsOG(self,inou=None):
+    #     """Sets random initial conditions for the community based on species and resources."""
+    #     self.E0 = np.random.uniform(self.Q*self.dlta, self.Q*self.dlta, self.S)
+    #     if inou==None:
+    #         self.a0 = np.zeros((self.S, self.R), dtype=float)
+    #         for i in range(0, self.S):
+    #             #change back now uniform random
+    #             dirc = np.random.randint(1,5,size=self.R) #sub dirc
+    #             self.a0[i, :] = np.random.dirichlet(dirc*np.ones(self.R), size=1) * self.E0[i]
+    #             #self.a0[i, :] = np.random.dirichlet(np.ones(self.R), size=1) * self.E0[i]
+    #         #now s is in center change back
+    #         self.s = np.random.uniform(10e-5,10e-2,self.R) #5,2
+    #         self.s = (self.s / self.s.sum())*10e-2 #S total will always be the same -> nmaybe change later
+    #         #self.s = np.random.uniform(10e-3,10e-3,self.R) #5,2
+    #     elif inou==True:
+    #         self.s,self.a0 = pick_inout_hull(self.S,self.R,self.E0,a=10e-5,b=10e-2,inout=True,di=np.random.randint(1,5,size=self.R))
+    #         self.s = (self.s / self.s.sum())*10e-2
 
-        else:
-            self.s, self.a0 = pick_inout_hull(self.S,self.R,self.E0,a=10e-5,b=10e-2,inout=False,di=np.random.randint(1,5,size=self.R))
-            self.s = (self.s / self.s.sum())*10e-2
+    #     else:
+    #         self.s, self.a0 = pick_inout_hull(self.S,self.R,self.E0,a=10e-5,b=10e-2,inout=False,di=np.random.randint(1,5,size=self.R))
+    #         self.s = (self.s / self.s.sum())*10e-2
 
 
-        self.n0 = np.random.uniform(1e6, 1e6, self.S) #10e-6
-        self.c0 = np.random.uniform(1e-3, 1e-3, self.R) #10e-3
-        self.z0 = np.concatenate((self.n0, self.c0, self.a0.flatten(), self.E0), axis=None)
-        return None
+    #     self.n0 = np.random.uniform(1e6, 1e6, self.S) #10e-6
+    #     self.c0 = np.random.uniform(1e-3, 1e-3, self.R) #10e-3
+    #     self.z0 = np.concatenate((self.n0, self.c0, self.a0.flatten(), self.E0), axis=None)
+    #     return None
     
-    def setInitialConditionsSimple(self,inou=None):
+    def setInitialConditions(self,inou=None):
         """Sets random initial conditions for the community based on species and resources."""
         self.E0 = np.random.uniform(self.Q*self.dlta, self.Q*self.dlta, self.S)
         if inou==None:
@@ -165,6 +165,50 @@ class Community(object):
         self.c0 = np.random.uniform(1e-3, 1e-3, self.R) #10e-3
         self.z0 = np.concatenate((self.n0, self.c0, self.a0.flatten()), axis=None)
         return None
+    
+    def setInitialConditionsManual(self,a0=np.array([None]),n0=np.array([None]),c0=np.array([None]),sameS=True):
+        """
+        
+
+        Parameters
+        ----------
+        a0 : TYPE
+            DESCRIPTION.
+        n0 : TYPE, optional
+            DESCRIPTION. The default is None.
+        c0 : TYPE, optional
+            DESCRIPTION. The default is None.
+        sameS : TYPE, optional
+            DESCRIPTION. The default is True.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        if sameS==False:
+            self.s = np.random.uniform(10e-5,10e-2,self.R)
+            
+        if n0.any()==None:
+            self.n0 = np.random.uniform(1e6, 1e6, self.S) #10e-6
+        else:
+            self.n0 = n0
+           
+        if c0.any()==None:
+            self.c0 = np.random.uniform(1e-3, 1e-3, self.R) #10e-3
+        else:
+            self.c0 = c0
+        if a0.any()==None:
+            self.a0 = np.zeros((self.S, self.R), dtype=float)
+            for i in range(0, self.S):
+                dirc = np.random.randint(1,5,size=self.R) #sub dirc
+                self.a0[i, :] = np.random.dirichlet(dirc*np.ones(self.R), size=1) * self.E0[i]
+        else:
+            self.a0 = a0
+
+        self.z0 = np.concatenate((self.n0, self.c0, self.a0.flatten()), axis=None)
+        return None
  
     def setInitialConditionsSameS(self,inou=None):
         """Sets random initial conditions for the community based on species and resources."""
@@ -184,8 +228,9 @@ class Community(object):
             
         self.n0 = np.random.uniform(1e6, 1e6, self.S) #10e-6
         self.c0 = np.random.uniform(1e-3, 1e-3, self.R) #10e-3
-        self.z0 = np.concatenate((self.n0, self.c0, self.a0.flatten(), self.E0), axis=None)
+        self.z0 = np.concatenate((self.n0, self.c0, self.a0.flatten()), axis=None)
         return None
+    
     def setInitialAlphaRandom(self):
         self.a0 = np.zeros((self.S, self.R), dtype=float)
         for i in range(0, self.S):
@@ -239,50 +284,50 @@ class Community(object):
         self.a0 = a0
         return None
     
-    def runModelSimple(self,ss=False):
-        """Executes the ODE model for the community dynamics in simplest form."""
-        max_attempts = 10
-        attempt = 0
-        while attempt < max_attempts:
+    # def runModelSimple(self,ss=False):
+    #     """Executes the ODE model for the community dynamics in simplest form."""
+    #     max_attempts = 10
+    #     attempt = 0
+    #     while attempt < max_attempts:
                 
-            try:
-                with warnings.catch_warnings():
-                    warnings.filterwarnings('error')
+    #         try:
+    #             with warnings.catch_warnings():
+    #                 warnings.filterwarnings('error')
                         
-                        # Use odeint here
-                    z = odeint(model_simple,self.z0,self.t,args=(self.S,self.R,self.v,self.d,self.dlta,self.s,self.u,self.K,self.Q))
-                    self.n = z[:,0:self.S]
-                    self.c = z[:,self.S:self.S+self.R]
-                    at = z[:,self.S+self.R:self.S+self.R+self.S*self.R]
-                    self.a = np.reshape(at,(self.num_t,self.S,self.R))  
+    #                     # Use odeint here
+    #                 z = odeint(model_simple,self.z0,self.t,args=(self.S,self.R,self.v,self.d,self.dlta,self.s,self.u,self.K,self.Q))
+    #                 self.n = z[:,0:self.S]
+    #                 self.c = z[:,self.S:self.S+self.R]
+    #                 at = z[:,self.S+self.R:self.S+self.R+self.S*self.R]
+    #                 self.a = np.reshape(at,(self.num_t,self.S,self.R))  
                     
-                    if ss==False:
-                        return None
-                    else:
-                        neq = self.n[-1,:]
-                        ceq = self.c[-1,:]
-                        aeq = self.a[-1,:,:]
-                        return neq,ceq,aeq
+    #                 if ss==False:
+    #                     return None
+    #                 else:
+    #                     neq = self.n[-1,:]
+    #                     ceq = self.c[-1,:]
+    #                     aeq = self.a[-1,:,:]
+    #                     return neq,ceq,aeq
                      
                   
-                    break
-            except Warning as w:
-                print(f"Caught a warning: {w}")
-                self.resetInitialConditions()
-                #check debug
-                self.setInitialConditions()
-                #self.setInitialConditionsDelta()
-                self.runModel()
-                attempt += 1
+    #                 break
+    #         except Warning as w:
+    #             print(f"Caught a warning: {w}")
+    #             self.resetInitialConditions()
+    #             #check debug
+    #             self.setInitialConditions()
+    #             #self.setInitialConditionsDelta()
+    #             self.runModel()
+    #             attempt += 1
                 
-            except Exception as e:
-                print(f"Caught an error: {e}")
-                attempt +=1
-        if attempt == max_attempts:
-            print("Max retry attempts reached.")
+    #         except Exception as e:
+    #             print(f"Caught an error: {e}")
+    #             attempt +=1
+    #     if attempt == max_attempts:
+    #         print("Max retry attempts reached.")
             
-        if ss==True:
-            return self.n0,self.c0,self.a0
+    #     if ss==True:
+    #         return self.n0,self.c0,self.a0
         
     def perturbInitialDensity(self,CV=0.03):
         """
@@ -327,37 +372,7 @@ class Community(object):
             self.perturbInitialDensityA0()
         else:
             return None
-        
-    def getJacobian(self):
-        neq,ceq,aeq = self.getSteadyState()
-        initial_guess = np.hstack((neq,ceq,aeq.flatten(),aeq.sum(axis=1)))
-        jacobian_matrix = compute_jacobian(model, initial_guess, self.S, self.R, self.v, self.d, self.dlta, self.s, self.u, self.K, self.Q)
-        return jacobian_matrix
-    
-    def getJacobianCentralDiff(self):
-        neq,ceq,aeq = self.getSteadyState()
-        initial_guess = np.hstack((neq,ceq,aeq.flatten(),aeq.sum(axis=1)))
-        jacobian_matrix = compute_jacobian_centDiff(model, initial_guess, self.S, self.R, self.v, self.d, self.dlta, self.s, self.u, self.K, self.Q)
-        return jacobian_matrix
-    
-    def getJacobianAtT(self,t):
-        """
-        
 
-        Parameters
-        ----------
-        t : INT, time to get state variables at for jacobian calculation
-
-        Returns
-        -------
-        numpy array of size [2*S+R+S*R,2*S+R+S*R] 
-            jacobian matrix at t
-
-        """        
-        neq,ceq,aeq = self.n[t,:], self.c[t,:], self.a[t,:,:]
-        initial_guess = np.hstack((neq,ceq,aeq.flatten(),aeq.sum(axis=1)))
-        jacobian_matrix = compute_jacobian(model, initial_guess, self.S, self.R, self.v, self.d, self.dlta, self.s, self.u, self.K, self.Q)
-        return jacobian_matrix
          
     def getLyapunovExp(self,N=3,CV=0.01):
         """
@@ -533,7 +548,7 @@ class Community(object):
                     warnings.filterwarnings('error')
                         
                         # Use odeint here
-                    z = odeint(model,self.z0,self.t,args=(self.S,self.R,self.v,self.d,self.dlta,self.s,self.u,self.K,self.Q))
+                    z = odeint(model,self.z0,self.t,args=(self.S,self.R,self.v,self.d,self.dlta,self.s,self.K,self.Q))
             
                     self.n = z[:,0:self.S]
                     self.c = z[:,self.S:self.S+self.R]

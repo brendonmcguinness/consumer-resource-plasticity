@@ -65,7 +65,7 @@ def growth(c, K, a, v, sigma):
 
 
 
-def model_simple(y, t, S, R, v, d, dlta, s, u, K, Q, fr=monod):
+def model(y, t, S, R, v, d, dlta, s, K, Q, fr=monod):
     """
     runs model from Pacciani paper adaptive metabolic strategies
 
@@ -82,7 +82,6 @@ def model_simple(y, t, S, R, v, d, dlta, s, u, K, Q, fr=monod):
     d : adaptation rate
     dlta : death rate of species sigma / outflow of chemostat
     s : supply of resource i
-    u : degradation rate of resource i
     K : Monod parameter
     Q : scaling parameter
 
@@ -110,8 +109,7 @@ def model_simple(y, t, S, R, v, d, dlta, s, u, K, Q, fr=monod):
 
     for i in range(0, R):
         # assuming no resource outflow (u is 0 for all i)
-        dcdt[i] = s[i] - (monod(c[i], K[i]) * np.sum(n *
-                          a[:, i])) - u[i]*c[i]  # -10*c[i]
+        dcdt[i] = s[i] - (monod(c[i], K[i]) * np.sum(n * a[:, i]))
 
     for sig in range(S):
         for i in range(R):
@@ -122,84 +120,84 @@ def model_simple(y, t, S, R, v, d, dlta, s, u, K, Q, fr=monod):
     dzdt = np.concatenate((dndt, dcdt, dadt.flatten()), axis=None)
     return dzdt
 
-def model(y, t, S, R, v, d, dlta, s, u, K, Q, fr=monod):
-    """
-    runs model from Pacciani paper adaptive metabolic strategies
+# def model(y, t, S, R, v, d, dlta, s, u, K, Q, fr=monod):
+#     """
+#     runs model from Pacciani paper adaptive metabolic strategies
 
 
-    Parameters
+#     Parameters
     
     
-    ----------
-    y : array keeping all the state variables
-    t : time array
-    S : num of species
-    R : num of resources
-    v : nutritional value of resource i
-    d : adaptation rate
-    dlta : death rate of species sigma / outflow of chemostat
-    s : supply of resource i
-    u : degradation rate of resource i
-    K : Monod parameter
-    Q : scaling parameter
+#     ----------
+#     y : array keeping all the state variables
+#     t : time array
+#     S : num of species
+#     R : num of resources
+#     v : nutritional value of resource i
+#     d : adaptation rate
+#     dlta : death rate of species sigma / outflow of chemostat
+#     s : supply of resource i
+#     u : degradation rate of resource i
+#     K : Monod parameter
+#     Q : scaling parameter
 
-    Returns
-    -------
-    dzdt : state variables all packed into same array
+#     Returns
+#     -------
+#     dzdt : state variables all packed into same array
 
-    """
+#     """
     
     
-    n = y[0:S]
-    c = y[S:S+R]
-    a = y[S+R:S+R+S*R]
-    E = y[S+R+S*R:2*S+R+S*R]
+#     n = y[0:S]
+#     c = y[S:S+R]
+#     a = y[S+R:S+R+S*R]
+#     E = y[S+R+S*R:2*S+R+S*R]
 
-    a = np.reshape(a, (S, R))
+#     a = np.reshape(a, (S, R))
 
-    dndt = np.zeros(S, dtype=float)
-    dcdt = np.zeros(R, dtype=float)
-    dadt = np.zeros(shape=(S, R), dtype=float)
-    dEdt = np.zeros(S, dtype=float)
+#     dndt = np.zeros(S, dtype=float)
+#     dcdt = np.zeros(R, dtype=float)
+#     dadt = np.zeros(shape=(S, R), dtype=float)
+#     dEdt = np.zeros(S, dtype=float)
 
-    if isinstance(Q, np.ndarray):
-        # chill
-        abcd = 1
-    else:
-        temp = Q*np.ones(S)
-        Q = temp
+#     if isinstance(Q, np.ndarray):
+#         # chill
+#         abcd = 1
+#     else:
+#         temp = Q*np.ones(S)
+#         Q = temp
 
-    for sig in range(0, S):
-        dndt[sig] = n[sig] * (np.sum(v * monod(c, K) * a[sig, :]) - dlta[sig])
+#     for sig in range(0, S):
+#         dndt[sig] = n[sig] * (np.sum(v * monod(c, K) * a[sig, :]) - dlta[sig])
 
-    for i in range(0, R):
-        # assuming no resource outflow (u is 0 for all i)
-        dcdt[i] = s[i] - (monod(c[i], K[i]) * np.sum(n *
-                          a[:, i])) - u[i]*c[i]  # -10*c[i]
-    for sig in range(S):
-        for i in range(R):
-            dadt[sig, i] = d[sig]*dlta[sig]*(v[i]*monod(c[i], K[i]) - (
-                1/R*np.sum(v*monod(c, K)*a[sig, :])))
+#     for i in range(0, R):
+#         # assuming no resource outflow (u is 0 for all i)
+#         dcdt[i] = s[i] - (monod(c[i], K[i]) * np.sum(n *
+#                           a[:, i])) - u[i]*c[i]  # -10*c[i]
+#     for sig in range(S):
+#         for i in range(R):
+#             dadt[sig, i] = d[sig]*dlta[sig]*(v[i]*monod(c[i], K[i]) - (
+#                 1/R*np.sum(v*monod(c, K)*a[sig, :])))
 
-    # for sig in range(0,S):
-    #    dadt[sig,:] = a[sig,:]*d*dlta[sig] * (v*monod(c,K) - (heavyside_approx(a,E,sig)/np.sum(a[sig,:])*np.sum(v*monod(c,K)*a[sig,:])))
+#     # for sig in range(0,S):
+#     #    dadt[sig,:] = a[sig,:]*d*dlta[sig] * (v*monod(c,K) - (heavyside_approx(a,E,sig)/np.sum(a[sig,:])*np.sum(v*monod(c,K)*a[sig,:])))
 
-    for sig in range(S):
-        for i in range(R):
-            dadt[sig, i] = a[sig, i]*d[sig]*dlta[sig]*(v[i]*monod(c[i], K[i]) - (
-                heavyside_approx(a, Q, dlta, sig)/np.sum(a[sig, :])*np.sum(v*monod(c, K)*a[sig, :])))
-
-
-#    for sig in range(S):
-#        for i in range(R):
-#            dadt[sig, i] = a[sig, i]*d[sig]*dlta[sig]*(v[i]*monod(c[i], K[i]) - (
-#                1/np.sum(a[sig, :])*np.sum(v*monod(c, K)*a[sig, :])))
+#     for sig in range(S):
+#         for i in range(R):
+#             dadt[sig, i] = a[sig, i]*d[sig]*dlta[sig]*(v[i]*monod(c[i], K[i]) - (
+#                 heavyside_approx(a, Q, dlta, sig)/np.sum(a[sig, :])*np.sum(v*monod(c, K)*a[sig, :])))
 
 
-    dEdt = np.sum(dadt, 1)
+# #    for sig in range(S):
+# #        for i in range(R):
+# #            dadt[sig, i] = a[sig, i]*d[sig]*dlta[sig]*(v[i]*monod(c[i], K[i]) - (
+# #                1/np.sum(a[sig, :])*np.sum(v*monod(c, K)*a[sig, :])))
 
-    dzdt = np.concatenate((dndt, dcdt, dadt.flatten(), dEdt), axis=None)
-    return dzdt
+
+#     dEdt = np.sum(dadt, 1)
+
+#     dzdt = np.concatenate((dndt, dcdt, dadt.flatten(), dEdt), axis=None)
+#     return dzdt
 
     
 

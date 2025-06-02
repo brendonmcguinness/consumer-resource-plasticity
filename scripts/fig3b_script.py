@@ -136,8 +136,8 @@ for j in range(N):
             #get ranked abundances
             ranks[j,i,:] = c.getRanks()
             #get scores predicting how much traits -> abundances
-            score0[j,i],scorec0[j,i],scored0[j,i] = pred_rad_multiple(a0,np.log(neq),s,c.E0)
-            score[j,i],scorec[j,i],scored[j,i] = pred_rad_multiple(aeq,np.log(neq),s,c.E0)
+            score0[j,i],scorec0[j,i],scored0[j,i], _ = pred_rad_multiple(a0,np.log(neq),s,c.E0)
+            score[j,i],scorec[j,i],scored[j,i], _ = pred_rad_multiple(aeq,np.log(neq),s,c.E0)
             #null model abundance prediction
         else:
             #j-=1

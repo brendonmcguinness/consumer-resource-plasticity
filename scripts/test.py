@@ -26,21 +26,16 @@ c.runModel() #runs Model model we use in this code is actually equation 16 in th
 #for the sake of these simulations it doesn't matter, you can use runModelSimple to use euqation 17 but you just need to initialize z0 differently because E0 is not a state variable
 c.changeTimeScale(50000, 50000)
 c.setD(1e-6) #sets plasticity rate
-c.runModel() #runs Model
+c.runModel() #runs Model i.e. equation 17 in the SI, it is the same model
 neq,ceq,aeq = c.getSteadyState() # returns steady state
 
 #here we can plot the abundance dynamics
 c.plotTimeSeries()
 
-#here we use model_simple i.e. equation 17 in the SI, it is the same model
-c.setInitialConditionsSimple()
-c.runModelSimple()
-c.plotTimeSeries(title='simple')
 #here we can plot the simplex (either at equilibrium or initial), (with or without centroid), and save or not
 #the plotSimplex method only works when R=3 (N_R=R in code) thus simplex is a triangle
 c.plotSimplex(eq=False,centroid=False,save=False)
 c.plotSimplex(eq=True,centroid=False,save=False)
-
 
 ## now let's try another community with a slow plastity rate and initially out of the convex hull
 c = Community(10, 3)

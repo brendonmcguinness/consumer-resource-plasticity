@@ -170,7 +170,7 @@ def plot_simplex_1plast(n_eq,a,s,ind_plast):
     plt.axis('off')
     plt.tight_layout()
     #plt.show()
-    plt.savefig('attempt_042825_fig2_Eq.pdf')
+    #plt.savefig('attempt_042825_fig2_Eq.pdf')
 
 
 S = 10
@@ -222,9 +222,9 @@ for i in range(0, S):
 """
 n0 = np.random.uniform(10e6, 10e6, S)
 c0 = np.random.uniform(10e-3, 10e-3, R)
-z0 = np.concatenate((n0, c0, a0.flatten(), E0), axis=None)
+z0 = np.concatenate((n0, c0, a0.flatten()), axis=None)
 
-z = odeint(model,z0,t,args=(S,R,v,d,dlta,s,u,K,Q))
+z = odeint(model,z0,t,args=(S,R,v,d,dlta,s,K,Q))
 
 n = z[:,0:S]
 c = z[:,S:S+R]
@@ -258,7 +258,7 @@ plt.gca().xaxis.set_major_formatter(MathTextSciFormatter("%1.1e"))
 plt.tight_layout()
 
 d[0] = 0
-z = odeint(model,z0,t,args=(S,R,v,d,dlta,s,u,K,Q))
+z = odeint(model,z0,t,args=(S,R,v,d,dlta,s,K,Q))
 
 n_nacc = z[:,0:S]
 
